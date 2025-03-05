@@ -1,0 +1,67 @@
+GO Terms Network Details:
+
+Term: regulation of protein phosphorylation (GO:0001932)
+Category: Biological Process
+P-value: 2.01e-04
+Combined score: 226.53
+
+Term: positive regulation of phosphorylation (GO:0042327)
+Category: Biological Process
+P-value: 1.05e-03
+Combined score: 171.66
+
+Term: positive regulation of protein modification process (GO:0031401)
+Category: Biological Process
+P-value: 3.60e-03
+Combined score: 148.68
+
+Term: vascular transport (GO:0010232)
+Category: Biological Process
+P-value: 9.44e-03
+Combined score: 217.32
+
+Term: transport across blood-brain barrier (GO:0150104)
+Category: Biological Process
+P-value: 9.44e-03
+Combined score: 210.02
+
+Term: ABC-type xenobiotic transporter activity (GO:0008559)
+Category: Molecular Function
+P-value: 2.08e-02
+Combined score: 759.09
+
+Term: insulin-like growth factor I binding (GO:0031994)
+Category: Molecular Function
+P-value: 2.08e-02
+Combined score: 594.30
+
+Term: insulin-like growth factor binding (GO:0005520)
+Category: Molecular Function
+P-value: 2.08e-02
+Combined score: 483.62
+
+Term: focal adhesion (GO:0005925)
+Category: Cellular Component
+P-value: 1.54e-02
+Combined score: 57.04
+
+Term: cell-substrate junction (GO:0030055)
+Category: Cellular Component
+P-value: 1.54e-02
+Combined score: 55.32
+
+Term: clathrin-coated endocytic vesicle membrane (GO:0030669)
+Category: Cellular Component
+P-value: 1.72e-02
+Combined score: 144.31
+
+Term: clathrin-coated endocytic vesicle (GO:0045334)
+Category: Cellular Component
+P-value: 2.24e-02
+Combined score: 106.47
+
+Term: clathrin-coated vesicle membrane (GO:0030665)
+Category: Cellular Component
+P-value: 2.24e-02
+Combined score: 97.87
+
