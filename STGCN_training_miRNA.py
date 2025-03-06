@@ -12,21 +12,22 @@ import os
 import seaborn as sns
 from node2vec import Node2Vec
 from scipy.stats import pearsonr,spearmanr
-from STGCN.model.models import *
+#from STGCN.model.models import *
 import sys
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-sys.path.append('./STGCN')
-from STGCN.model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights
+#sys.path.append('./STGCN')
+#from STGCN.model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights
+from model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights
 import argparse
 import random
 from scipy.spatial.distance import cdist
 from create_graph_and_embeddings_STGCN import *
+from create_graph_and_embeddings_STGCN_mirna import *
 from STGCN_losses import temporal_loss_for_projected_model, enhanced_temporal_loss, gene_specific_loss
 from evaluation import *
 from clustering_by_expr_levels import analyze_expression_levels_kmeans, analyze_expression_levels,analyze_expression_levels_research
 from categorize_genes.ppi_calculation import get_mouse_ppi_data, compare_ppi_with_hic, get_mgi_info, analyze_and_plot_ppi, analyze_ppi_with_aliases
-from models import *
-    
+
 
 def set_seed(seed=42):
     random.seed(seed)  
@@ -127,10 +128,10 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_three_st, args.n_vertex, gene_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_two_st, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=1e-5)
 
     gene_correlations = compute_gene_correlations(dataset, model)
     print("Gene Correlations:", gene_correlations)
@@ -785,25 +786,24 @@ class Args_miRNA:
             [48, 32, 1]      
         ]
 
-        self.blocks_three_st = [
-            [64, 64, 64],    
-            [64, 128, 128], 
-            [128, 48, 48],
-            [48, 48, 48],    
+        self.blocks_temporal_node2vec = [
+            [128, 128, 128],    
+            [128, 64, 64], 
+            [64, 48, 48],    
             [48, 32, 1]      
         ]
-        
+
         self.act_func = 'gelu'
         self.graph_conv_type = 'cheb_graph_conv'
         self.enable_bias = True
         self.droprate = 0.2
 
 if __name__ == "__main__":
-    dataset = TemporalGraphDataset(
+    dataset = TemporalGraphDatasetMirna(
         #csv_file='mapped/enhanced_interactions_new_new.csv', # for mRNA original data with additional biological features
         #csv_file='mapped/enhanced_interactions_synthetic_simple.csv', # for mRNA data's synthetic interactions
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
-        embedding_dim=64,
+        embedding_dim=128,
         seq_len=5,
         pred_len=1
     )
