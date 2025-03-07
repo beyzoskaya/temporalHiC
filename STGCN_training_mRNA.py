@@ -16,7 +16,7 @@ from STGCN.model.models import *
 import sys
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 sys.path.append('./STGCN')
-from STGCN.model.models import STGCNChebGraphConv, STGCNChebGraphConvProjected, STGCNGraphConv, STGCNGraphConvProjected, STGCNChebGraphConvProjectedGeneConnectedAttention, STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna
+from model.models import STGCNChebGraphConv, STGCNChebGraphConvProjected, STGCNGraphConv, STGCNGraphConvProjected, STGCNChebGraphConvProjectedGeneConnectedAttention, STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna
 import argparse
 import random
 from scipy.spatial.distance import cdist
@@ -1014,7 +1014,7 @@ if __name__ == "__main__":
         #csv_file='mapped/enhanced_interactions_new_new.csv', # for mRNA original data with additional biological features
         #csv_file='mapped/enhanced_interactions_synthetic_simple.csv', # for mRNA data's synthetic interactions
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
-        embedding_dim=64,
+        embedding_dim=32,
         seq_len=3,
         pred_len=1
     )

@@ -769,7 +769,7 @@ def analyze_temporal_patterns(dataset, predictions, targets):
 class Args_miRNA:
     def __init__(self):
         self.Kt = 3 # temporal kernel size
-        self.Ks = 3  # spatial kernel size
+        self.Ks = 3 # spatial kernel size
         self.n_his = 6 # historical sequence length
         self.n_pred = 1
        
