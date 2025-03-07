@@ -128,7 +128,7 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec, args.n_vertex, gene_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_option_two, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
@@ -770,7 +770,7 @@ class Args_miRNA:
     def __init__(self):
         self.Kt = 3 # temporal kernel size
         self.Ks = 3  # spatial kernel size
-        self.n_his = 6  # historical sequence length
+        self.n_his = 6 # historical sequence length
         self.n_pred = 1
        
         self.blocks = [
@@ -791,6 +791,13 @@ class Args_miRNA:
             [128, 64, 64], 
             [64, 48, 48],    
             [48, 32, 1]      
+        ]
+
+        self.blocks_temporal_node2vec_option_two = [
+            [128, 128, 128],
+            [128, 64, 64],
+            [64, 96, 96],
+            [96, 64, 1]
         ]
 
         self.act_func = 'gelu'

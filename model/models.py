@@ -402,6 +402,8 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         self.lstm_proj = nn.Linear(2 * blocks[-3][-1], blocks[-3][-1])  # *2 for bidirectional
         
         self.lstm_norm = nn.LayerNorm([n_vertex, blocks[-3][-1]])
+
+        print(f"Dimension fo embed_dim in multihead attention: {blocks[-1][0]}")
  
         self.multihead_attention = nn.MultiheadAttention(
             embed_dim=blocks[-1][0],  # Feature dimension after output block
@@ -480,6 +482,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         
         x_attention = x.permute(2, 0, 3, 1)  # [time_steps, batch, nodes, features]
         x_attention = x_attention.reshape(time_steps, batch_size * nodes, current_features)
+        print(f"x_attention shape: {x_attention.shape}")
         
         attn_output, _ = self.multihead_attention(x_attention, x_attention, x_attention)
 

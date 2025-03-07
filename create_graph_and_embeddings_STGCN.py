@@ -25,44 +25,7 @@ from scipy import stats
 from scipy.spatial.distance import pdist, squareform
 from torch.utils.data import DataLoader, TensorDataset
 import random
-
-class TemporalNode2Vec:
-    def __init__(self, graph, dimensions=64, walk_length=30, num_walks=20, p=1.0, q=1.0, workers=1, seed=42):
-        self.graph = graph
-        self.dimensions = dimensions
-        self.walk_length = walk_length
-        self.num_walks = num_walks
-        self.p = p
-        self.q = q
-        self.workers = workers
-        self.seed = seed
-
-    def fit(self, window=5, min_count=1, batch_words=4):
-        node2vec = Node2Vec(
-            self.graph,
-            dimensions=self.dimensions,
-            walk_length=self.walk_length,
-            num_walks=self.num_walks,
-            p=self.p,
-            q=self.q,
-            workers=self.workers,
-            seed=self.seed
-        )
-        model = node2vec.fit(window=window, min_count=min_count, batch_words=batch_words)
-        return model
-
-    def temporal_fit(self, time_points, window=5, min_count=1, batch_words=4):
-        all_embeddings = {}
-        for t in time_points:
-            print(f"Processing time point {t}")
-            for u, v, d in self.graph.edges(data=True):
-                time_diff = abs(t - d.get('time', t))
-                d['weight'] *= np.exp(-time_diff) 
-
-            model = self.fit(window=window, min_count=min_count, batch_words=batch_words)
-            embeddings = {node: torch.tensor(model.wv[node], dtype=torch.float32) for node in self.graph.nodes()}
-            all_embeddings[t] = embeddings
-        return all_embeddings
+from create_graph_and_embeddings_STGCN_mirna import TemporalNode2Vec
 
 def clean_gene_name(gene_name):
     """Clean gene name by removing descriptions and extra information"""
@@ -135,7 +98,7 @@ class TemporalGraphDataset:
         print("Base graph created")
         #self.node_features = self.create_temporal_node_features_several_graphs_created_clustering() # try with several graphs for time series consistency
         self.node_features, self.temporal_edge_indices, self.temporal_edge_attrs = \
-        self.create_temporal_node_features_several_graphs_created_mirna_temporal_node2vec(debug_mode=True)
+        self.create_temporal_node_features_several_graphs_created_mirna(debug_mode=True)
         print("Temporal node features created")
         
         # Get edge information
@@ -477,6 +440,80 @@ class TemporalGraphDataset:
             
         return temporal_features, temporal_edge_indices, temporal_edge_attrs
     
+    def create_temporal_node_features_several_graphs_created_clustering_temporal_node2vec(self):
+        temporal_features = {}
+        temporal_edge_indices = {}
+        temporal_edge_attrs = {}
+
+        clusters, _ = analyze_expression_levels_research(self)
+        gene_clusters = {gene: cluster_name for cluster_name, genes in clusters.items() for gene in genes}
+
+        all_expressions = []
+        for t in self.time_points:
+            for gene in self.node_map.keys():
+                gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
+                gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
+                expr_value = gene1_expr[0] if len(gene1_expr) > 0 else (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
+                all_expressions.append(expr_value)
+
+        global_min, global_max = min(all_expressions), max(all_expressions)
+        
+        low_corr_genes = ['AMACR', 'ABCG2', 'MMP7', 'HPGDS', 'MGAT4A']
+
+        for t in self.time_points:
+            expression_values = {}
+            for gene in self.node_map.keys():
+                gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
+                gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
+                expr_value = gene1_expr[0] if len(gene1_expr) > 0 else (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
+                expression_values[gene] = (expr_value - global_min) / (global_max - global_min + 1e-8)
+
+            G = nx.Graph()
+            G.add_nodes_from(self.node_map.keys())
+            edge_index, edge_weights = [], []
+
+            for _, row in self.df.iterrows():
+                gene1, gene2 = row['Gene1_clean'], row['Gene2_clean']
+                expr_sim = 1 / (1 + abs(expression_values[gene1] - expression_values[gene2]))
+                hic_weight = np.log1p(row['HiC_Interaction']) if gene1 in low_corr_genes or gene2 in low_corr_genes else row['HiC_Interaction']
+                compartment_sim = 1 if row['Gene1_Compartment'] == row['Gene2_Compartment'] else 0
+                tad_dist = abs(row['Gene1_TAD_Boundary_Distance'] - row['Gene2_TAD_Boundary_Distance'])
+                tad_sim, ins_sim = 1 / (1 + tad_dist), 1 / (1 + abs(row['Gene1_Insulation_Score'] - row['Gene2_Insulation_Score']))
+                cluster_sim = 1.2 if gene_clusters.get(gene1) == gene_clusters.get(gene2) else 1.0
+
+                weight = ((hic_weight * 0.3 + compartment_sim * 0.1 + tad_sim * 0.1 + ins_sim * 0.1 + expr_sim * 0.4) 
+                        * cluster_sim)
+                G.add_edge(gene1, gene2, weight=weight)
+                i, j = self.node_map[gene1], self.node_map[gene2]
+                edge_index.extend([[i, j], [j, i]])
+                edge_weights.extend([weight, weight])
+
+            temporal_node2vec = TemporalNode2Vec(
+                G,
+                dimensions=self.embedding_dim,
+                walk_length=10,
+                num_walks=25,
+                window=5,
+                workers=1,
+                seed=42
+            )
+            model = temporal_node2vec.fit()
+
+            features = []
+            for gene in self.node_map.keys():
+                node_embedding = torch.tensor(model.wv[gene], dtype=torch.float32)
+                node_embedding[-1] = expression_values[gene] * (2.0 if gene in low_corr_genes else 1.0)
+                features.append(node_embedding)
+
+            temporal_features[t] = torch.stack(features)
+            temporal_edge_indices[t] = torch.tensor(edge_index).t().contiguous()
+            temporal_edge_attrs[t] = torch.tensor(edge_weights, dtype=torch.float32).unsqueeze(1)
+
+            print(f"\nFeature Statistics for time {t}:")
+            print(f"Expression range: [{min(expression_values.values()):.4f}, {max(expression_values.values()):.4f}]")
+            print(f"Embedding range: [{temporal_features[t].min():.4f}, {temporal_features[t].max():.4f}]")
+        
+        return temporal_features, temporal_edge_indices, temporal_edge_attrs
 
     def create_temporal_node_features_several_graphs_created_mirna(self, debug_mode=True):
 
@@ -650,137 +687,6 @@ class TemporalGraphDataset:
             print(f"Expression range: [{min(expression_values.values()):.4f}, {max(expression_values.values()):.4f}]")
             print(f"Embedding range: [{temporal_features[t].min():.4f}, {temporal_features[t].max():.4f}]")
             
-        return temporal_features, temporal_edge_indices, temporal_edge_attrs
-
-    def create_temporal_node_features_several_graphs_created_mirna_temporal_node2vec(self, debug_mode=True):
-        temporal_features = {}
-        temporal_edge_indices = {}
-        temporal_edge_attrs = {}
-
-        clusters, _ = analyze_expression_levels_gmm(self)
-        gene_clusters = {}
-        for cluster_name, genes in clusters.items():
-            for gene in genes:
-                gene_clusters[gene] = cluster_name
-        
-        print("\nNormalizing expression values across all time points...")
-        all_expressions = []
-        log_expressions = []
-
-        for t in self.time_points:
-            for gene in self.node_map.keys():
-                gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
-                gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
-                expr_value = gene1_expr[0] if len(gene1_expr) > 0 else \
-                            (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
-                log_expr = np.log1p(expr_value + 1e-7)
-                
-                all_expressions.append(expr_value)
-                log_expressions.append(log_expr)
-                
-        global_min = min(all_expressions)
-        global_max = max(all_expressions)
-        print(f"Global expression range: [{global_min:.4f}, {global_max:.4f}]") #Global expression range: [1.0000, 19592.0000] 
-
-        for t in self.time_points:
-            print(f"\nProcessing time point {t}")
-            
-            expression_values = {}
-            for gene in self.node_map.keys():
-                gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
-                gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
-                
-                if np.isnan(gene1_expr).any():
-                    print(f"NaN detected in Gene1 expression for {gene} at time {t}")
-                if np.isnan(gene2_expr).any():
-                    print(f"NaN detected in Gene2 expression for {gene} at time {t}")
-
-                expr_value = gene1_expr[0] if len(gene1_expr) > 0 else \
-                            (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
-
-                expression_values[gene] = (expr_value - global_min) / (global_max - global_min + 1e-8)
-
-            G = nx.Graph()
-            G.add_nodes_from(self.node_map.keys())
-
-            edge_index = []
-            edge_weights = []
-            for _, row in self.df.iterrows():
-                gene1 = row['Gene1_clean']
-                gene2 = row['Gene2_clean']
-                
-                expr_sim = 1 / (1 + abs(expression_values[gene1] - expression_values[gene2]))
-
-                if np.isnan(expr_sim):
-                    print(f"NaN detected in expression similarity between {gene1} and {gene2} at time {t}")
-                
-                hic_weight = row['HiC_Interaction'] 
-                
-                if pd.isna(row['HiC_Interaction']):
-                    print(f"HiC weight is NaN")
-            
-                compartment_sim = 1 if row['Gene1_Compartment'] == row['Gene2_Compartment'] else 0 
-
-                tad_dist = abs(row['Gene1_TAD_Boundary_Distance'] - row['Gene2_TAD_Boundary_Distance'])
-                tad_sim = 1 / (1 + tad_dist)
-                ins_sim = 1 / (1 + abs(row['Gene1_Insulation_Score'] - row['Gene2_Insulation_Score']))
-
-                if np.isnan(hic_weight):
-                    print(f"NaN detected in HiC weight for {gene1}-{gene2}")
-                if np.isnan(compartment_sim):
-                    print(f"NaN detected in compartment similarity for {gene1}-{gene2}")
-                if np.isnan(tad_sim):
-                    print(f"NaN detected in TAD similarity for {gene1}-{gene2}")
-                if np.isnan(ins_sim):
-                    print(f"NaN detected in insulation similarity for {gene1}-{gene2}")
-                
-                if gene_clusters[gene1] == gene_clusters[gene2]:
-                    cluster_sim = 1.2
-                else:
-                    cluster_sim = 1.0
-
-                weight = (hic_weight * 0.3 +
-                        compartment_sim * 0.1 +
-                        tad_sim * 0.1 +
-                        ins_sim * 0.1 +
-                        expr_sim * 0.4) 
-                
-                G.add_edge(gene1, gene2, weight=weight)
-                i, j = self.node_map[gene1], self.node_map[gene2]
-                edge_index.extend([[i, j], [j, i]])
-                edge_weights.extend([weight, weight])
-            
-            # Temporal Node2Vec
-            temporal_node2vec = TemporalNode2Vec(
-                G, 
-                dimensions=self.embedding_dim, 
-                walk_length=30,
-                num_walks=20, 
-                p=1.2,
-                q=0.8,
-                workers=1,
-                seed=42
-            )
-            all_embeddings = temporal_node2vec.temporal_fit(self.time_points, window=5, min_count=1, batch_words=4)
-
-            for t, embeddings in all_embeddings.items():
-                features = []
-                for gene in self.node_map.keys():
-                    node_embedding = embeddings[gene]
-                    features.append(node_embedding)
-
-                temporal_features[t] = torch.stack(features)
-                temporal_edge_indices[t] = torch.tensor(edge_index).t().contiguous()
-                temporal_edge_attrs[t] = torch.tensor(edge_weights, dtype=torch.float32).unsqueeze(1)
-
-                if debug_mode:
-                    features_np = temporal_features[t].numpy()
-                    print(f"\nFeature Statistics for time {t}:")
-                    print(f"Feature matrix shape: {features_np.shape}")
-                    print(f"Feature min value: {features_np.min():.4f}")
-                    print(f"Feature max value: {features_np.max():.4f}")
-                    print(f"Feature std: {features_np.std():.4f}")
-
         return temporal_features, temporal_edge_indices, temporal_edge_attrs
     
     def create_temporal_node_features_several_graphs_mirna_developed(self, debug_mode=True):
