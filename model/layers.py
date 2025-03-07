@@ -736,6 +736,10 @@ class STConvBlockTwoSTBlocks(nn.Module):
         self.tmp_conv1 = TemporalConvLayer(Kt, last_block_channel, channels[0], n_vertex, act_func)
         self.graph_conv = GraphConvLayer(graph_conv_type, channels[0], channels[1], Ks, gso, bias)
         self.tmp_conv2 = TemporalConvLayer(Kt, channels[1], channels[2], n_vertex, act_func)
+
+        print(f"channels[0]: {channels[2]}")
+        print(f"channels[1]: {channels[2]}")
+        print(f"channels[2]: {channels[2]}")
         
         self.attention = nn.Sequential(
             nn.Conv2d(channels[2], channels[2], kernel_size=1),
@@ -743,7 +747,6 @@ class STConvBlockTwoSTBlocks(nn.Module):
         )
         
         self.tc2_ln = nn.LayerNorm([n_vertex, channels[2]], eps=1e-12)
-        self.relu = nn.ReLU()
         self.elu = nn.ELU()
         self.dropout = nn.Dropout(p=droprate)
 

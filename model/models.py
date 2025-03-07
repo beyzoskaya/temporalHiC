@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GATConv
-from STGCN.model import layers
+from model import layers
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 import math
 
@@ -386,6 +386,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         self.st_blocks = nn.Sequential(*modules)
         Ko = args.n_his - (len(blocks) - 3) * 2 * (args.Kt - 1)
         self.Ko = Ko
+        print(f"Ko: {self.Ko}")
 
         self.lstm_mirna = nn.LSTM(
             input_size=blocks[-3][-1], 
@@ -436,11 +437,12 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
 
         
     def forward(self, x):
+        #print(f"Shape of x: {x.shape}") # [batch=1, embedding_dim=128, sequence_len=5, nodes=162]
         x = self.st_blocks(x)
         #print(f"Shape after ST blocks: {x.shape}") 
 
         batch_size, features, time_steps, nodes = x.shape
-        #print(f"Batch size: {batch_size}, Features: {features}, Time steps: {time_steps}, Nodes: {nodes}")
+        #print(f"Batch size: {batch_size}, Features: {features}, Time steps: {time_steps}, Nodes: {nodes}") 
 
         # LSTM processing
         x_lstm = x.permute(0, 3, 2, 1)  # [batch, nodes, time_steps, features]

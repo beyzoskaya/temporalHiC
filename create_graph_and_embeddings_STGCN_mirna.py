@@ -26,10 +26,11 @@ from scipy.spatial.distance import pdist, squareform
 from torch.utils.data import DataLoader, TensorDataset
 import random
 
-
+# Temporal Node2Vec doesn't change the dimensional aspect of the model but change the creation of the embeddings in terms of capturing relations
 class TemporalNode2Vec:
-    def __init__(self, dimensions=128, walk_length=30, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.7):
+    def __init__(self, dimensions=128, walk_length=25, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.4):
         self.dimensions = dimensions
+        print(f"Embedding dimension in TemporalNode2Vec: {self.dimensions}")
         self.walk_length = walk_length
         self.num_walks = num_walks
         self.p = p
@@ -120,7 +121,7 @@ class TemporalNode2Vec:
         print("\nFitting Node2Vec on temporal graph...")
         temporal_model = self.fit_single_graph(temporal_graph, window, min_count, batch_words)
         
-        # temporal embeddings for each time point
+        # temporal embeddings for each time pointdmdc
         temporal_embeddings = {}
         for t in time_points:
             embeddings = []
@@ -131,9 +132,11 @@ class TemporalNode2Vec:
                 else:
                     if node in initial_embeddings[t]:
                         embedding = torch.tensor(initial_embeddings[t][node], dtype=torch.float32)
+                        print(f"Embeddings not found for {node} at different time {t}")
                     else:
                         # If node not found at all, use zeros
                         embedding = torch.zeros(self.dimensions, dtype=torch.float32)
+                        print(f"Embeddings not found for {node} at time {t}")
                 embeddings.append(embedding)
             
             temporal_embeddings[t] = torch.stack(embeddings)
@@ -145,7 +148,7 @@ class TemporalNode2Vec:
         return temporal_embeddings
     
 class TemporalGraphDatasetMirna:
-    def __init__(self, csv_file, embedding_dim=64, seq_len=5, pred_len=1, graph_params=None, node2vec_params=None): # I change the seq_len to more lower value
+    def __init__(self, csv_file, embedding_dim=128, seq_len=5, pred_len=1, graph_params=None, node2vec_params=None): # I change the seq_len to more lower value
         #self.graph_params = graph_params or {}
         #self.node2vec_params = node2vec_params or {}
         self.seq_len = seq_len
@@ -311,7 +314,7 @@ class TemporalGraphDatasetMirna:
                         compartment_sim * 0.1 +
                         tad_sim * 0.1 +
                         ins_sim * 0.1 +
-                        expr_sim * 0.4) 
+                        expr_sim * 0.4)
                 
                 G.add_edge(gene1, gene2, weight=weight)
                 i, j = self.node_map[gene1], self.node_map[gene2]
@@ -471,7 +474,7 @@ class TemporalGraphDatasetMirna:
             q=1.0,
             workers=1,
             seed=42,
-            temporal_weight=0.7  
+            temporal_weight=0.4  
         )
         
         temporal_features = temporal_node2vec.temporal_fit(
