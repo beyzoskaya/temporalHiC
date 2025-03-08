@@ -23,7 +23,7 @@ import random
 from scipy.spatial.distance import cdist
 from create_graph_and_embeddings_STGCN import *
 from create_graph_and_embeddings_STGCN_mirna import *
-from STGCN_losses import temporal_loss_for_projected_model, enhanced_temporal_loss, gene_specific_loss
+from STGCN_losses import temporal_loss_for_projected_model, enhanced_temporal_loss, miRNA_enhanced_temporal_loss
 from evaluation import *
 from clustering_by_expr_levels import analyze_expression_levels_kmeans, analyze_expression_levels,analyze_expression_levels_research
 from categorize_genes.ppi_calculation import get_mouse_ppi_data, compare_ppi_with_hic, get_mgi_info, analyze_and_plot_ppi, analyze_ppi_with_aliases
@@ -114,7 +114,7 @@ def train_stgcn(dataset,val_ratio=0.2):
     model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_option_two, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
 
     gene_correlations = compute_gene_correlations(dataset, model)
     print("Gene Correlations:", gene_correlations)
@@ -167,7 +167,13 @@ def train_stgcn(dataset,val_ratio=0.2):
 
             all_targets.append(target.detach().cpu().numpy())
             all_outputs.append(output.detach().cpu().numpy())
-            loss = enhanced_temporal_loss(
+            #loss = enhanced_temporal_loss(
+            # output[:, :, -1:, :],
+            # target,
+            # x
+            #)
+
+            loss = miRNA_enhanced_temporal_loss(
              output[:, :, -1:, :],
              target,
              x
@@ -206,7 +212,8 @@ def train_stgcn(dataset,val_ratio=0.2):
                 #target = target[:,:,-1:, :]
                 #val_loss = criterion(output[:, :, -1:, :], target)
 
-                val_loss = enhanced_temporal_loss(output[:, :, -1:, :], target, x)
+                #val_loss = enhanced_temporal_loss(output[:, :, -1:, :], target, x)
+                val_loss = miRNA_enhanced_temporal_loss(output[:, :, -1:, :], target, x)
 
                 val_loss_total += val_loss.item()
 
@@ -242,6 +249,7 @@ def train_stgcn(dataset,val_ratio=0.2):
                 break
 
     checkpoint = torch.load(f'{save_dir}/best_model.pth', weights_only=True)
+    #checkpoint = torch.load(f'{save_dir}/best_model.pth')
     model.load_state_dict(checkpoint['model_state_dict'])
     
     # Plot training progress
@@ -439,28 +447,28 @@ def calculate_epoch_correlation(all_outputs, all_targets, dataset):
     processed_targets = []
     
     for output, target in zip(all_outputs, all_targets):
-        print(f"Output shape: {output.shape}")
-        print(f"Target shape: {target.shape}")
+        #print(f"Output shape: {output.shape}") --> [1, 1, 1, 162]
+        #print(f"Target shape: {target.shape}") --> [1, 1, 1, 162]
 
         output_exp = output.squeeze()  
         target_exp = target.squeeze()  
 
-        print(f"Output squeezed shape: {output_exp.shape}")
-        print(f"Target squeezed shape: {target_exp.shape}")
+        #print(f"Output squeezed shape: {output_exp.shape}") --> [162, ]
+        #print(f"Target squeezed shape: {target_exp.shape}") --> [162, ]
         
         processed_outputs.append(output_exp)
         processed_targets.append(target_exp)
     
-    print(f"Processed outputs length: {len(processed_outputs)}, Processed targets length: {len(processed_targets)}")
-    print(f"Example processed output shape: {processed_outputs[0].shape if len(processed_outputs) > 0 else 'Empty'}")
-    print(f"Example processed target shape: {processed_targets[0].shape if len(processed_targets) > 0 else 'Empty'}")
+    #print(f"Processed outputs length: {len(processed_outputs)}, Processed targets length: {len(processed_targets)}")
+    #print(f"Example processed output shape: {processed_outputs[0].shape if len(processed_outputs) > 0 else 'Empty'}")
+    #print(f"Example processed target shape: {processed_targets[0].shape if len(processed_targets) > 0 else 'Empty'}")
     
     # Stack along the time dimension - this should give [time_points, nodes]
     stacked_outputs = np.vstack(processed_outputs)
     stacked_targets = np.vstack(processed_targets)
 
-    print(f"Output shape stacked: {stacked_outputs.shape}")
-    print(f"Target shape stacked: {stacked_targets.shape}")
+    #print(f"Output shape stacked: {stacked_outputs.shape}") --> [120, 162]
+    #print(f"Target shape stacked: {stacked_targets.shape}") --> [120, 162]
     
     gene_correlations = []
     genes = list(dataset.node_map.keys())
@@ -469,8 +477,8 @@ def calculate_epoch_correlation(all_outputs, all_targets, dataset):
         pred_gene = stacked_outputs[:, gene_idx]  # All timepoints for this gene
         true_gene = stacked_targets[:, gene_idx]  # All timepoints for this gene
 
-        print(f"Pred gene shape: {pred_gene.shape}")
-        print(f"True gene shape: {true_gene.shape}")
+        #print(f"Pred gene shape: {pred_gene.shape}")
+        #print(f"True gene shape: {true_gene.shape}")
      
         if np.std(pred_gene) > 0 and np.std(true_gene) > 0:
             corr, _ = pearsonr(pred_gene, true_gene)
@@ -1051,8 +1059,8 @@ if __name__ == "__main__":
         pred_len=1
     )
    
-    #model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn(dataset, val_ratio=0.2)
-    model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn_check_overfitting(dataset, val_ratio=0.2)
+    model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn(dataset, val_ratio=0.2)
+    #model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn_check_overfitting(dataset, val_ratio=0.2)
     metrics = evaluate_model_performance(model, val_sequences, val_labels, dataset)
     plot_gene_predictions_train_val(model, train_sequences, train_labels, val_sequences, val_labels, dataset)
 

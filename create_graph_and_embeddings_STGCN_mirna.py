@@ -148,7 +148,7 @@ class TemporalNode2Vec:
         return temporal_embeddings
     
 class TemporalGraphDatasetMirna:
-    def __init__(self, csv_file, embedding_dim=128, seq_len=5, pred_len=1, graph_params=None, node2vec_params=None): # I change the seq_len to more lower value
+    def __init__(self, csv_file, embedding_dim=128, seq_len=8, pred_len=1, graph_params=None, node2vec_params=None): # I change the seq_len to more lower value
         #self.graph_params = graph_params or {}
         #self.node2vec_params = node2vec_params or {}
         self.seq_len = seq_len
@@ -510,41 +510,43 @@ class TemporalGraphDatasetMirna:
                 gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
                 gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
                 expr_value = gene1_expr[0] if len(gene1_expr) > 0 else \
-                        (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
+                            (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
                 all_expressions.append(expr_value)
-        
+                
         global_min = min(all_expressions)
         global_max = max(all_expressions)
-
-        print(f"Global expression range: {global_min:.4f}, {global_max:.4f}")
-
+        print(f"Global expression range: [{global_min:.4f}, {global_max:.4f}]")
+        
+        # original (non-temporal) embeddings for each gene
         original_embeddings = {}
+        
         temporal_graphs = {}
         temporal_edge_indices = {}
         temporal_edge_attrs = {}
-
+        
         for t in self.time_points:
             print(f"\nProcessing time point {t}")
-
+            
             expression_values = {}
             for gene in self.node_map.keys():
                 gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
                 gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
-            
+                
                 expr_value = gene1_expr[0] if len(gene1_expr) > 0 else \
-                        (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
+                            (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
+                
                 expression_values[gene] = (expr_value - global_min) / (global_max - global_min + 1e-8)
             
             G = nx.Graph()
             G.add_nodes_from(self.node_map.keys())
-
+            
             edge_index = []
             edge_weights = []
-
+            
             for _, row in self.df.iterrows():
                 gene1 = row['Gene1_clean']
                 gene2 = row['Gene2_clean']
-
+                
                 expr_sim = 1 / (1 + abs(expression_values[gene1] - expression_values[gene2]))
                 hic_weight = row['HiC_Interaction'] if not pd.isna(row['HiC_Interaction']) else 0
                 compartment_sim = 1 if row['Gene1_Compartment'] == row['Gene2_Compartment'] else 0
@@ -554,45 +556,48 @@ class TemporalGraphDatasetMirna:
                 ins_sim = 1 / (1 + abs(row['Gene1_Insulation_Score'] - row['Gene2_Insulation_Score']))
                 
                 cluster_sim = 1.2 if gene_clusters.get(gene1) == gene_clusters.get(gene2) else 1.0
-
+                
                 weight = (hic_weight * 0.3 +
-                    compartment_sim * 0.1 +
-                    tad_sim * 0.1 +
-                    ins_sim * 0.1 +
-                    expr_sim * 0.4)
+                        compartment_sim * 0.1 +
+                        tad_sim * 0.1 +
+                        ins_sim * 0.1 +
+                        expr_sim * 0.4) 
                 
                 G.add_edge(gene1, gene2, weight=weight, time=t)
-
-                i,j = self.node_map[gene1], self.node_map[gene2]
-                edge_index.extend([i,j], [j,i])
+                
+                i, j = self.node_map[gene1], self.node_map[gene2]
+                edge_index.extend([[i, j], [j, i]])
                 edge_weights.extend([weight, weight])
-            
+
             temporal_graphs[t] = G
             temporal_edge_indices[t] = torch.tensor(edge_index).t().contiguous()
             temporal_edge_attrs[t] = torch.tensor(edge_weights, dtype=torch.float32).unsqueeze(1)
-
+            
+            # original embeddings for this time point
             print(f"Generating original (non-temporal) embeddings for time {t}")
             node2vec = Node2Vec(
-            G,
-            dimensions=self.embedding_dim // 2,  # Half the dimensions for original embeddings
-            walk_length=25,
-            num_walks=75,
-            p=1.0,
-            q=1.0,
-            workers=1,
-            seed=42
+                G,
+                dimensions=self.embedding_dim // 2,  # Half the dimensions for original embeddings
+                walk_length=25,
+                num_walks=75,
+                p=1.0,
+                q=1.0,
+                workers=1,
+                seed=42
             )
-
+            
             model = node2vec.fit(window=5, min_count=1, batch_words=4)
-
+            
             gene_embeddings = {}
             for gene in self.node_map.keys():
                 if gene in model.wv:
                     gene_embeddings[gene] = torch.tensor(model.wv[gene], dtype=torch.float32)
                 else:
                     gene_embeddings[gene] = torch.zeros(self.embedding_dim // 2, dtype=torch.float32)
+            
             original_embeddings[t] = gene_embeddings
-
+        
+        # temporal embeddings
         temporal_node2vec = TemporalNode2Vec(
             dimensions=self.embedding_dim // 2,  # Half the dimensions for temporal embeddings
             walk_length=25,
@@ -603,7 +608,7 @@ class TemporalGraphDatasetMirna:
             seed=42,
             temporal_weight=0.4  
         )
-
+        
         temporal_features_raw = temporal_node2vec.temporal_fit(
             temporal_graphs=temporal_graphs,
             time_points=self.time_points,
@@ -612,31 +617,32 @@ class TemporalGraphDatasetMirna:
             min_count=1,
             batch_words=4
         )
-
+        
         combined_features = {}
         for t in self.time_points:
             gene_features = []
-
+            
             for i, gene in enumerate(self.node_map.keys()):
                 orig_emb = original_embeddings[t][gene]
-                temp_emb = temporal_features_raw[t][gene]
-
+                
+                temp_emb = temporal_features_raw[t][i]
+               
                 gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
                 gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
                 expr_value = gene1_expr[0] if len(gene1_expr) > 0 else \
-                        (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
+                            (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
                 normalized_expr = (expr_value - global_min) / (global_max - global_min + 1e-8)
-
+                
                 combined_emb = torch.cat([orig_emb, temp_emb])
-            
+                
                 gene_features.append(combined_emb)
-
-                combined_features[t] = torch.stack(gene_features)
-
-                print(f"\nCombined feature statistics for time {t}:")
-                print(f"Shape: {combined_features[t].shape}")
-                print(f"Min: {combined_features[t].min().item():.4f}, Max: {combined_features[t].max().item():.4f}")
-                print(f"Mean: {combined_features[t].mean().item():.4f}, Std: {combined_features[t].std().item():.4f}")
+            
+            combined_features[t] = torch.stack(gene_features)
+            
+            print(f"\nCombined feature statistics for time {t}:")
+            print(f"Shape: {combined_features[t].shape}")
+            print(f"Min: {combined_features[t].min().item():.4f}, Max: {combined_features[t].max().item():.4f}")
+            print(f"Mean: {combined_features[t].mean().item():.4f}, Std: {combined_features[t].std().item():.4f}")
         
         return combined_features, temporal_edge_indices, temporal_edge_attrs
 

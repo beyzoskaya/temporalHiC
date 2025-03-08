@@ -138,6 +138,105 @@ def enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.3, 
     
     return total_loss
 
+def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.25, beta=0.25, gamma=0.25, delta=0.25):
+    mse_loss = F.mse_loss(output, target)
+    l1_loss = F.l1_loss(output, target)
+ 
+    input_expressions = input_sequence[:, -1, :, :]  # Feature dimension, time steps, genes
+    last_input = input_expressions[:, -1:, :]  # Last time point
+   
+    output_reshaped = output.squeeze(1)
+    target_reshaped = target.squeeze(1)
+
+    # Direction loss - captures if predictions move in the correct direction
+    true_change = target_reshaped - last_input
+    pred_change = output_reshaped - last_input
+
+    # cosine similarity to measure directional agreement
+    true_norm = F.normalize(true_change, p=2, dim=-1)
+    pred_norm = F.normalize(pred_change, p=2, dim=-1)
+    direction_cosine = torch.sum(true_norm * pred_norm, dim=-1)
+    direction_loss = 1 - torch.mean(direction_cosine)
+    
+    # Scale direction loss to be comparable with other components
+    scaled_direction_loss = direction_loss * 0.01
+    
+    def enhanced_trend_correlation(pred, target, sequence_expr):
+        pred_trend = torch.cat([sequence_expr, pred], dim=1)
+        target_trend = torch.cat([sequence_expr, target], dim=1)
+
+        def correlation_loss(x, y):
+            x_centered = x - x.mean(dim=1, keepdim=True)
+            y_centered = y - y.mean(dim=1, keepdim=True)
+            x_norm = torch.sqrt(torch.sum(x_centered**2, dim=1) + 1e-8)
+            y_norm = torch.sqrt(torch.sum(y_centered**2, dim=1) + 1e-8)
+            correlation = torch.sum(x_centered * y_centered, dim=1) / (x_norm * y_norm + 1e-8)
+            return 1 - correlation.mean()  # 1-correlation for minimization
+        
+        corr_loss = correlation_loss(pred_trend, target_trend)
+        smoothness_loss = torch.mean(torch.abs(torch.diff(pred_trend, dim=1)))
+       
+        return corr_loss + 0.15 * smoothness_loss
+ 
+    temporal_loss = enhanced_trend_correlation(output_reshaped, target_reshaped, input_expressions)
+    scaled_temporal_loss = temporal_loss * 0.1
+    
+    # Consistency loss - encourages predictions to be realistic extensions of history
+    last_sequence_val = input_expressions[:, -1, :]
+    consistency_loss = torch.mean(torch.abs(output_reshaped - last_sequence_val))
+    
+    def simplified_correlation_structure(pred, target):
+        #print(f"Pred dimension: {pred.dim()}")
+        #print(f"Target dimension: {target.dim()}")
+        if pred.dim() > 2:
+            pred = pred.reshape(-1, pred.shape[-1])
+        if target.dim() > 2:
+            target = target.reshape(-1, target.shape[-1])
+            
+        # correlation between genes for pred and target
+        pred_centered = pred - pred.mean(dim=0, keepdim=True)
+        target_centered = target - target.mean(dim=0, keepdim=True)
+        
+        pred_std = torch.std(pred, dim=0, keepdim=True) + 1e-8
+        target_std = torch.std(target, dim=0, keepdim=True) + 1e-8
+        
+        pred_normalized = pred_centered / pred_std
+        target_normalized = target_centered / target_std
+        
+        # gene-gene correlation matrices
+        pred_corr = torch.mm(pred_normalized.t(), pred_normalized) / (pred.shape[0])
+        target_corr = torch.mm(target_normalized.t(), target_normalized) / (target.shape[0])
+        
+        #return F.mse_loss(pred_corr, target_corr)
+        return F.l1_loss(pred_corr, target_corr)
+    
+    try:
+        corr_structure_loss = simplified_correlation_structure(output_reshaped, target_reshaped)
+    except Exception as e:
+        print(f"Warning: Could not calculate correlation structure loss: {str(e)}")
+        corr_structure_loss = torch.tensor(0.0, device=output.device)
+    
+    total_loss = (
+        alpha * l1_loss +
+        beta * scaled_direction_loss + 
+        gamma * scaled_temporal_loss +
+        delta * consistency_loss
+    )
+    
+    if corr_structure_loss > 0:
+        total_loss = total_loss + 0.1 * corr_structure_loss
+
+    print(f"\nLoss Components:")
+    #print(f"MSE Loss: {mse_loss.item():.4f}")
+    print(f"L1 loss: {l1_loss.item():.4f}")
+    print(f"Direction Loss: {scaled_direction_loss.item():.4f}")
+    print(f"Temporal Loss: {scaled_temporal_loss.item():.4f}")
+    print(f"Consistency Loss: {consistency_loss.item():.4f}")
+    if corr_structure_loss > 0:
+        print(f"Correlation Structure Loss: {corr_structure_loss.item():.4f}")
+
+    return total_loss
+
 def gene_specific_loss(output, target, input_sequence, gene_correlations=None, alpha=0.2, beta=0.2, gamma=0.3):
 
     output = output[:, :, -1, :]  # [batch_size, 1, nodes]
