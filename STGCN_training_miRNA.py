@@ -85,18 +85,10 @@ def compute_gene_connections(dataset):
     return connections
 
 def train_stgcn(dataset,val_ratio=0.2):
-    # ADDED FOR GRID SEARCH ARGS
-    #if args is None: 
     args = Args_miRNA()
     args.n_vertex = dataset.num_nodes
     n_vertex = dataset.num_nodes
 
-    #print(f"\nModel Configuration:")
-    #print(f"Number of nodes: {args.n_vertex}")
-    #print(f"Historical sequence length: {args.n_his}")
-    #print(f"Block structure: {args.blocks}")
-
-    # sequences with labels
     sequences, labels = dataset.get_temporal_sequences()
     print(f"\nCreated {len(sequences)} sequences")
 
@@ -117,21 +109,12 @@ def train_stgcn(dataset,val_ratio=0.2):
         f.write("\nValidation Indices:\n")
         f.write(", ".join(map(str, val_idx)) + "\n")
 
-    #print(f"\nData Split:")
-    #print(f"Training sequences: {len(sequences)}")
-    #print(f"Validation sequences: {len(val_sequences)}")
-
-
-    #print("\n=== Training Data Statistics ===")
-    #print(f"Number of training sequences: {len(sequences)}")
-    #print(f"Number of validation sequences: {len(val_sequences)}")
-
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
     model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_option_two, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
 
     gene_correlations = compute_gene_correlations(dataset, model)
     print("Gene Correlations:", gene_correlations)
@@ -148,6 +131,9 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     train_losses = []
     val_losses = []
+
+    train_correlations = []
+    val_correlations = []
     
     for epoch in range(num_epochs):
         model.train()
@@ -274,6 +260,243 @@ def train_stgcn(dataset,val_ratio=0.2):
     plt.close()
     
     return model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels
+
+def train_stgcn_check_overfitting(dataset, val_ratio=0.2):
+    args = Args_miRNA()
+    args.n_vertex = dataset.num_nodes
+    n_vertex = dataset.num_nodes
+
+    sequences, labels = dataset.get_temporal_sequences()
+    print(f"\nCreated {len(sequences)} sequences")
+
+    # GSO
+    edge_index = sequences[0][0].edge_index
+    edge_weight = sequences[0][0].edge_attr.squeeze() if sequences[0][0].edge_attr is not None else None
+
+    adj = torch.zeros((args.n_vertex, args.n_vertex)) # symmetric matrix
+    adj[edge_index[0], edge_index[1]] = 1 if edge_weight is None else edge_weight # diagonal vs nondiagonal elements for adj matrix
+    D = torch.diag(torch.sum(adj, dim=1) ** (-0.5))
+    args.gso = torch.eye(args.n_vertex) - D @ adj @ D
+    
+    train_sequences, train_labels, val_sequences, val_labels, train_idx, val_idx = dataset.split_sequences(sequences, labels)
+    
+    with open('plottings_STGCN_clustered/split_indices.txt', 'w') as f:
+        f.write("Train Indices:\n")
+        f.write(", ".join(map(str, train_idx)) + "\n")
+        f.write("\nValidation Indices:\n")
+        f.write(", ".join(map(str, val_idx)) + "\n")
+
+    gene_connections = compute_gene_connections(dataset)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_option_two, args.n_vertex, gene_connections)
+    model = model.float() # convert model to float otherwise I am getting type error
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
+
+    gene_correlations = compute_gene_correlations(dataset, model)
+    print("Initial Gene Correlations:", gene_correlations)
+    print("Min Correlation:", gene_correlations.min().item())
+    print("Max Correlation:", gene_correlations.max().item())
+    print("Mean Correlation:", gene_correlations.mean().item())
+
+    num_epochs = 100
+    best_val_loss = float('inf')
+    patience = 20
+    patience_counter = 0
+    save_dir = 'plottings_STGCN_clustered'
+    os.makedirs(save_dir, exist_ok=True)
+
+    train_losses = []
+    val_losses = []
+    
+    train_correlations = []
+    val_correlations = []
+    
+    for epoch in range(num_epochs):
+        model.train()
+        total_loss = 0
+        batch_stats = []
+        all_train_targets = []
+        all_train_outputs = []
+
+        for seq, label in zip(train_sequences, train_labels):
+            optimizer.zero_grad()
+            x, target = process_batch(seq, label)
+            output = model(x)
+
+            batch_stats.append({
+                'target_range': [target.min().item(), target.max().item()],
+                'output_range': [output.min().item(), output.max().item()],
+                'target_mean': target.mean().item(),
+                'output_mean': output.mean().item()
+            })
+
+            all_train_targets.append(target.detach().cpu().numpy())
+            all_train_outputs.append(output[:, :, -1:, :].detach().cpu().numpy())
+            
+            loss = enhanced_temporal_loss(
+             output[:, :, -1:, :],
+             target,
+             x
+            )
+
+            if torch.isnan(loss):
+                print("NaN loss detected!")
+                print(f"Output range: [{output.min().item():.4f}, {output.max().item():.4f}]")
+                print(f"Target range: [{target.min().item():.4f}, {target.max().item():.4f}]")
+                continue
+
+            loss.backward()
+            optimizer.step()
+            total_loss += loss.item()
+
+        # Validation loop
+        model.eval()
+        val_loss_total = 0
+        all_val_targets = []
+        all_val_outputs = []
+        
+        with torch.no_grad():
+            for seq, label in zip(val_sequences, val_labels):
+                x, target = process_batch(seq, label)
+                output = model(x)
+                
+                # Save outputs and targets for correlation calculation
+                all_val_targets.append(target.detach().cpu().numpy())
+                all_val_outputs.append(output[:, :, -1:, :].detach().cpu().numpy())
+
+                val_loss = enhanced_temporal_loss(output[:, :, -1:, :], target, x)
+                val_loss_total += val_loss.item()
+
+        avg_train_loss = total_loss / len(train_sequences)
+        avg_val_loss = val_loss_total / len(val_sequences)
+        
+        train_losses.append(avg_train_loss)
+        val_losses.append(avg_val_loss)
+        
+        train_corr = calculate_epoch_correlation(all_train_outputs, all_train_targets, dataset)
+        val_corr = calculate_epoch_correlation(all_val_outputs, all_val_targets, dataset)
+        
+        train_correlations.append(train_corr)
+        val_correlations.append(val_corr)
+        
+        print(f'Epoch {epoch+1}/{num_epochs}')
+        print(f'Training Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}')
+        print(f'Training Correlation: {train_corr:.4f}, Validation Correlation: {val_corr:.4f}')
+        
+        # Early stopping
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
+            patience_counter = 0
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': avg_val_loss,
+                'train_corr': train_corr,
+                'val_corr': val_corr,
+            }, f'{save_dir}/best_model.pth')
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                print("Early stopping triggered.")
+                break
+
+    checkpoint = torch.load(f'{save_dir}/best_model.pth', weights_only=True)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    
+    plt.figure(figsize=(12, 5))
+ 
+    plt.subplot(1, 2, 1)
+    plt.plot(train_losses, label='Train')
+    plt.plot(val_losses, label='Validation')
+    plt.title('Training and Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(train_correlations, label='Train')
+    plt.plot(val_correlations, label='Validation')
+    plt.title('Training and Validation Correlation')
+    plt.xlabel('Epoch')
+    plt.ylabel('Correlation')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig(f'{save_dir}/training_metrics.png')
+    plt.show()
+    plt.close()
+    
+    is_overfitting = check_overfitting(train_correlations, val_correlations, train_losses, val_losses)
+    if is_overfitting:
+        print("Warning: Model shows signs of overfitting. Consider regularization or reducing model complexity.")
+    
+    return model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels
+
+def calculate_epoch_correlation(all_outputs, all_targets, dataset):
+
+    processed_outputs = []
+    processed_targets = []
+    
+    for output, target in zip(all_outputs, all_targets):
+        print(f"Output shape: {output.shape}")
+        print(f"Target shape: {target.shape}")
+
+        output_exp = output.squeeze()  
+        target_exp = target.squeeze()  
+
+        print(f"Output squeezed shape: {output_exp.shape}")
+        print(f"Target squeezed shape: {target_exp.shape}")
+        
+        processed_outputs.append(output_exp)
+        processed_targets.append(target_exp)
+    
+    print(f"Processed outputs length: {len(processed_outputs)}, Processed targets length: {len(processed_targets)}")
+    print(f"Example processed output shape: {processed_outputs[0].shape if len(processed_outputs) > 0 else 'Empty'}")
+    print(f"Example processed target shape: {processed_targets[0].shape if len(processed_targets) > 0 else 'Empty'}")
+    
+    # Stack along the time dimension - this should give [time_points, nodes]
+    stacked_outputs = np.vstack(processed_outputs)
+    stacked_targets = np.vstack(processed_targets)
+
+    print(f"Output shape stacked: {stacked_outputs.shape}")
+    print(f"Target shape stacked: {stacked_targets.shape}")
+    
+    gene_correlations = []
+    genes = list(dataset.node_map.keys())
+    
+    for gene_idx in range(stacked_outputs.shape[1]):
+        pred_gene = stacked_outputs[:, gene_idx]  # All timepoints for this gene
+        true_gene = stacked_targets[:, gene_idx]  # All timepoints for this gene
+
+        print(f"Pred gene shape: {pred_gene.shape}")
+        print(f"True gene shape: {true_gene.shape}")
+     
+        if np.std(pred_gene) > 0 and np.std(true_gene) > 0:
+            corr, _ = pearsonr(pred_gene, true_gene)
+            gene_correlations.append(corr)
+        else:
+            gene_correlations.append(0.0)  # No correlation if either has zero variance
+    
+    return np.mean(gene_correlations)
+
+def check_overfitting(train_corrs, val_corrs, train_losses, val_losses):
+
+    if len(train_corrs) > 10:
+        recent_train_corr = np.mean(train_corrs[-5:])
+        recent_val_corr = np.mean(val_corrs[-5:])
+        
+        corr_gap = recent_train_corr - recent_val_corr
+      
+        recent_train_loss = np.mean(train_losses[-5:])
+        recent_val_loss = np.mean(val_losses[-5:])
+        
+        loss_ratio = recent_val_loss / recent_train_loss if recent_train_loss > 0 else 1.0
+
+        if corr_gap > 0.2 or loss_ratio > 1.5:
+            return True
+    
+    return False
 
 def evaluate_model_performance(model, val_sequences, val_labels, dataset,save_dir='plottings_STGCN_clustered'):
 
@@ -766,11 +989,23 @@ def analyze_temporal_patterns(dataset, predictions, targets):
     
     return temporal_stats
 
+
+"""
+Kt and Ks control how model processes information across both time and space
+If I want use more time point and more order for graph, I need to use higher value of n_his to not get negative value of Ko
+
+n_his determines how far back in time model looks when making predictions
+n_his directly determines how many consecutive time points of data model receives as input --> in miRNA expression prediction, this means how many previous time points of expression data the model can see.
+"""
 class Args_miRNA:
     def __init__(self):
-        self.Kt = 3 # temporal kernel size
-        self.Ks = 3 # spatial kernel size
-        self.n_his = 6 # historical sequence length
+        #self.Kt = 3 # temporal kernel size
+        #self.Ks = 3 # spatial kernel size
+        #self.n_his = 6 # number of historical time steps
+
+        self.Kt = 4
+        self.Ks = 4
+        self.n_his = 8 
         self.n_pred = 1
        
         self.blocks = [
@@ -811,11 +1046,13 @@ if __name__ == "__main__":
         #csv_file='mapped/enhanced_interactions_synthetic_simple.csv', # for mRNA data's synthetic interactions
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
         embedding_dim=128,
-        seq_len=5,
+        #seq_len=5,
+        seq_len=8,
         pred_len=1
     )
    
-    model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn(dataset, val_ratio=0.2)
+    #model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn(dataset, val_ratio=0.2)
+    model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn_check_overfitting(dataset, val_ratio=0.2)
     metrics = evaluate_model_performance(model, val_sequences, val_labels, dataset)
     plot_gene_predictions_train_val(model, train_sequences, train_labels, val_sequences, val_labels, dataset)
 
