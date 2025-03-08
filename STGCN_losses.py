@@ -138,7 +138,7 @@ def enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.3, 
     
     return total_loss
 
-def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.25, beta=0.25, gamma=0.25, delta=0.25):
+def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.20, gamma=0.30, delta=0.20):
     mse_loss = F.mse_loss(output, target)
     l1_loss = F.l1_loss(output, target)
  
@@ -196,9 +196,14 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.25, bet
         # correlation between genes for pred and target
         pred_centered = pred - pred.mean(dim=0, keepdim=True)
         target_centered = target - target.mean(dim=0, keepdim=True)
+
+        pred_var = torch.sum(pred_centered**2, dim=0, keepdim=True) / pred.shape[0] + 1e-8
+        target_var = torch.sum(target_centered**2, dim=0, keepdim=True) / target.shape[0] + 1e-8
         
-        pred_std = torch.std(pred, dim=0, keepdim=True) + 1e-8
-        target_std = torch.std(target, dim=0, keepdim=True) + 1e-8
+        pred_std = torch.sqrt(pred_var)
+        target_std = torch.sqrt(target_var)
+        #pred_std = torch.std(pred, dim=0, keepdim=True) + 1e-8
+        #target_std = torch.std(target, dim=0, keepdim=True) + 1e-8
         
         pred_normalized = pred_centered / pred_std
         target_normalized = target_centered / target_std

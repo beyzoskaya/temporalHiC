@@ -1054,7 +1054,7 @@ if __name__ == "__main__":
         #csv_file='mapped/enhanced_interactions_synthetic_simple.csv', # for mRNA data's synthetic interactions
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
         embedding_dim=128,
-        #seq_len=5,
+        #seq_len=6,
         seq_len=8,
         pred_len=1
     )
