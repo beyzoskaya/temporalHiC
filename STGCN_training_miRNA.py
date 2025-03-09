@@ -111,10 +111,14 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_four_st_blocks, args.n_vertex, gene_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=5, verbose=True
+    )
+    
 
     gene_correlations = compute_gene_correlations(dataset, model)
     print("Gene Correlations:", gene_correlations)
@@ -132,9 +136,6 @@ def train_stgcn(dataset,val_ratio=0.2):
     train_losses = []
     val_losses = []
 
-    train_correlations = []
-    val_correlations = []
-    
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
@@ -231,6 +232,8 @@ def train_stgcn(dataset,val_ratio=0.2):
         print(f'Epoch {epoch+1}/{num_epochs}')
         print(f'Training Loss: {avg_train_loss:.4f}')
         print(f'Validation Loss: {avg_val_loss:.4f}')
+
+        scheduler.step(avg_val_loss)
         
         # Early stopping
         if avg_val_loss < best_val_loss:
@@ -1017,8 +1020,8 @@ class Args_miRNA:
 
         self.Kt=3
         self.Ks=3
-        #self.n_his=13
-        self.n_his=17 # I am changing number of historical time steps because number of ST blocks are increased, Ko become < 0!
+        self.n_his=13
+        #self.n_his=17 # I am changing number of historical time steps because number of ST blocks are increased, Ko become < 0!
         self.n_pred = 1
        
         self.blocks = [
@@ -1056,6 +1059,14 @@ class Args_miRNA:
             [96, 64, 1]         # Output block
         ]
 
+        self.blocks_temporal_node2vec_with_three_st_blocks_256dim = [
+            [256, 256, 256],    # Initial block (doubled from 128)
+            [256, 192, 192],    # First ST block output (doubled from 96)
+            [192, 128, 128],    # Second ST block output (doubled from 64)
+            [128, 192, 192],    # Third ST block output (doubled from 96)
+            [192, 128, 1]       # Output block (doubled intermediate dimension)
+        ]
+
         self.blocks_temporal_node2vec_with_four_st_blocks = [
             [128, 128, 128],    # Initial block
             [128, 112, 112],    # First ST block output
@@ -1075,9 +1086,9 @@ if __name__ == "__main__":
         #csv_file='mapped/enhanced_interactions_new_new.csv', # for mRNA original data with additional biological features
         #csv_file='mapped/enhanced_interactions_synthetic_simple.csv', # for mRNA data's synthetic interactions
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
-        embedding_dim=128,
+        embedding_dim=256,
         #seq_len=6,
-        seq_len=17,
+        seq_len=13,
         pred_len=1
     )
    

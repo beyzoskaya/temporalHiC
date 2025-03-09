@@ -28,7 +28,7 @@ import random
 
 # Temporal Node2Vec doesn't change the dimensional aspect of the model but change the creation of the embeddings in terms of capturing relations
 class TemporalNode2Vec:
-    def __init__(self, dimensions=128, walk_length=25, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.4):
+    def __init__(self, dimensions=256, walk_length=25, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.4):
         self.dimensions = dimensions
         print(f"Embedding dimension in TemporalNode2Vec: {self.dimensions}")
         self.walk_length = walk_length
@@ -148,7 +148,7 @@ class TemporalNode2Vec:
         return temporal_embeddings
     
 class TemporalGraphDatasetMirna:
-    def __init__(self, csv_file, embedding_dim=128, seq_len=8, pred_len=1, graph_params=None, node2vec_params=None): # I change the seq_len to more lower value
+    def __init__(self, csv_file, embedding_dim=256, seq_len=13, pred_len=1, graph_params=None, node2vec_params=None): # I change the seq_len to more lower value
         #self.graph_params = graph_params or {}
         #self.node2vec_params = node2vec_params or {}
         self.seq_len = seq_len
