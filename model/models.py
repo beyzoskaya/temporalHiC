@@ -384,6 +384,10 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
                                             args.act_func, args.graph_conv_type, args.gso, 
                                             args.enable_bias, args.droprate))
         self.st_blocks = nn.Sequential(*modules)
+
+        """
+        Ko represents the remaining length of the temporal sequence after it passes through all the spatial-temporal convolutional blocks
+        """  
         Ko = args.n_his - (len(blocks) - 3) * 2 * (args.Kt - 1)
         self.Ko = Ko
         print(f"Ko: {self.Ko}")
@@ -394,7 +398,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
             num_layers=6,
             batch_first=True,
             bidirectional=True,
-            dropout=0.1
+            dropout=0.2
         )
 
         print(f"Hidden size blocks [-3][-1]: {blocks[-3][-1]}")
@@ -407,7 +411,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
  
         self.multihead_attention = nn.MultiheadAttention(
             embed_dim=blocks[-1][0],  # Feature dimension after output block
-            num_heads=4,
+            num_heads=6,
             dropout=0.1
         )
 
@@ -482,7 +486,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         
         x_attention = x.permute(2, 0, 3, 1)  # [time_steps, batch, nodes, features]
         x_attention = x_attention.reshape(time_steps, batch_size * nodes, current_features)
-        print(f"x_attention shape: {x_attention.shape}")
+        #print(f"x_attention shape: {x_attention.shape}") --> [5, 162, 96]
         
         attn_output, _ = self.multihead_attention(x_attention, x_attention, x_attention)
 
