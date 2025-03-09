@@ -111,10 +111,10 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_option_two, args.n_vertex, gene_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_four_st_blocks, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
 
     gene_correlations = compute_gene_correlations(dataset, model)
     print("Gene Correlations:", gene_correlations)
@@ -1011,9 +1011,14 @@ class Args_miRNA:
         #self.Ks = 3 # spatial kernel size
         #self.n_his = 6 # number of historical time steps
 
-        self.Kt = 4
-        self.Ks = 4
-        self.n_his = 8 
+        #self.Kt = 4
+        #self.Ks = 4
+        #self.n_his = 8 
+
+        self.Kt=3
+        self.Ks=3
+        #self.n_his=13
+        self.n_his=17 # I am changing number of historical time steps because number of ST blocks are increased, Ko become < 0!
         self.n_pred = 1
        
         self.blocks = [
@@ -1043,6 +1048,23 @@ class Args_miRNA:
             [96, 64, 1]
         ]
 
+        self.blocks_temporal_node2vec_with_three_st_blocks = [
+            [128, 128, 128],    # Initial block
+            [128, 96, 96],      # First ST block output
+            [96, 64, 64],       # Second ST block output
+            [64, 96, 96],       # Third ST block output
+            [96, 64, 1]         # Output block
+        ]
+
+        self.blocks_temporal_node2vec_with_four_st_blocks = [
+            [128, 128, 128],    # Initial block
+            [128, 112, 112],    # First ST block output
+            [112, 96, 96],      # Second ST block output
+            [96, 64, 64],       # Third ST block output
+            [64, 96, 96],       # Fourth ST block output
+            [96, 64, 1]         # Output block
+        ]
+
         self.act_func = 'gelu'
         self.graph_conv_type = 'cheb_graph_conv'
         self.enable_bias = True
@@ -1055,7 +1077,7 @@ if __name__ == "__main__":
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
         embedding_dim=128,
         #seq_len=6,
-        seq_len=8,
+        seq_len=17,
         pred_len=1
     )
    

@@ -138,7 +138,7 @@ def enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.3, 
     
     return total_loss
 
-def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.20, gamma=0.30, delta=0.20):
+def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.2, gamma=0.3, delta=0.2):
     mse_loss = F.mse_loss(output, target)
     l1_loss = F.l1_loss(output, target)
  
