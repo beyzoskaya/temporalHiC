@@ -538,11 +538,9 @@ class BiLSTMExpressionPredictor(nn.Module):
             dropout=dropout
         )
 
-        self.projection = nn.Linear(2 * hidden_dim, hidden_dim) #reduce dim after bidirectional concat
+        self.projection = nn.Linear(2 * hidden_dim, hidden_dim)
 
-        self.layer_norm = nn.LayerNorm([n_vertex, hidden_dim])
-
-        self.expression_proj = nn.Sequential(
+        self.expression_predictor = nn.Sequential(
             nn.Linear(hidden_dim, 64),
             nn.LayerNorm(64),
             nn.ELU(),
@@ -552,7 +550,7 @@ class BiLSTMExpressionPredictor(nn.Module):
             nn.ELU(),
             nn.Linear(32, 1)
         )
-    
+
     def forward(self, x):
         # input shape: [batch, features, time_steps, nodes]
         batch_size, features, time_steps, nodes = x.shape
@@ -561,12 +559,9 @@ class BiLSTMExpressionPredictor(nn.Module):
         x = x.reshape(batch_size * nodes, time_steps, features)
         
         lstm_out, _ = self.lstm(x)
-
         lstm_out = self.projection(lstm_out)
         
         lstm_out = lstm_out.reshape(batch_size, nodes, time_steps, self.hidden_dim)
-        
-        lstm_out = self.layer_norm(lstm_out)
         
         # From [batch, nodes, time_steps, hidden_dim] to [batch, time_steps, nodes, hidden_dim]
         x = lstm_out.permute(0, 2, 1, 3)  # [batch, time_steps, nodes, hidden_dim]
