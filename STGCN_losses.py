@@ -229,7 +229,8 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
     )
     
     if corr_structure_loss > 0:
-        total_loss = total_loss + 0.1 * corr_structure_loss
+        #total_loss = total_loss + 0.1 * corr_structure_loss
+        total_loss = total_loss + 0.2 * corr_structure_loss
 
     print(f"\nLoss Components:")
     #print(f"MSE Loss: {mse_loss.item():.4f}")

@@ -17,7 +17,7 @@ import sys
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 #sys.path.append('./STGCN')
 #from STGCN.model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights
-from model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights
+from model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights,BiLSTMExpressionPredictor
 import argparse
 import random
 from scipy.spatial.distance import cdist
@@ -111,7 +111,14 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim, args.n_vertex, gene_connections)
+    model = BiLSTMExpressionPredictor(
+    embedding_dim=256,  
+    hidden_dim=128,     
+    n_vertex=dataset.num_nodes,
+    num_layers=6,    
+    dropout=0.3        
+    )
+    #model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
