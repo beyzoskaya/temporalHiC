@@ -121,10 +121,13 @@ class TemporalNode2Vec:
         print("\nFitting Node2Vec on temporal graph...")
         temporal_model = self.fit_single_graph(temporal_graph, window, min_count, batch_words)
         
-        # temporal embeddings for each time pointdmdc
+        # temporal embeddings for each time point
         temporal_embeddings = {}
+        temporal_embeddings_normalized = {}
         for t in time_points:
             embeddings = []
+            normalized_embeddings = []
+
             for node in node_map.keys():
                 temporal_node_name = f"{node}_t{t}"
                 if temporal_node_name in temporal_model.wv:
@@ -138,12 +141,21 @@ class TemporalNode2Vec:
                         embedding = torch.zeros(self.dimensions, dtype=torch.float32)
                         print(f"Embeddings not found for {node} at time {t}")
                 embeddings.append(embedding)
+
+                embedding_norm = torch.norm(embedding, p=2) + 1e-8  
+                normalized_embedding = embedding / embedding_norm
+                normalized_embeddings.append(normalized_embedding)
             
             temporal_embeddings[t] = torch.stack(embeddings)
+            temporal_embeddings_normalized[t] = torch.stack(normalized_embeddings)
             
             print(f"\nEmbedding statistics for time {t}:")
             print(f"Min: {temporal_embeddings[t].min().item():.4f}, Max: {temporal_embeddings[t].max().item():.4f}")
             print(f"Mean: {temporal_embeddings[t].mean().item():.4f}, Std: {temporal_embeddings[t].std().item():.4f}")
+
+            print(f"\nNormalized Embedding statistics for time {t}:")
+            print(f"Min: {temporal_embeddings_normalized[t].min().item():.4f}, Max: {temporal_embeddings_normalized[t].max().item():.4f}")
+            print(f"Mean: {temporal_embeddings_normalized[t].mean().item():.4f}, Std: {temporal_embeddings_normalized[t].std().item():.4f}")
         
         return temporal_embeddings
     
