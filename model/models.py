@@ -521,6 +521,17 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
                     elif 'bias' in name:
                         nn.init.constant_(param, 0)
 
+
+"""
+model call parameters while training
+model = BiLSTMExpressionPredictor(
+    embedding_dim=256,  
+    hidden_dim=128,     
+    n_vertex=dataset.num_nodes,
+    num_layers=6,    
+    dropout=0.3        
+    )
+"""
 class BiLSTMExpressionPredictor(nn.Module):
     def __init__(self, embedding_dim, hidden_dim, n_vertex, num_layers=6, dropout=0.3):
         super(BiLSTMExpressionPredictor, self).__init__()
@@ -571,6 +582,72 @@ class BiLSTMExpressionPredictor(nn.Module):
         x = x.permute(0, 3, 1, 2)  # [batch, 1, time_steps, nodes]
         
         return x
+
+"""
+model parameters when calling in training
+model = MultiHeadAttentionPredictor(
+    embedding_dim=256, 
+    hidden_dim=128,     
+    n_vertex=dataset.num_nodes,
+    num_heads=6,        
+    dropout=0.2        
+)
+"""
+class MultiHeadAttentionPredictor(nn.Module):
+    def __init__(self, embedding_dim, hidden_dim, n_vertex, num_heads=6, dropout=0.3):
+        super(MultiHeadAttentionPredictor, self).__init__()
+
+        self.embedding_dim = embedding_dim
+        self.hidden_dim = hidden_dim
+        self.n_vertex = n_vertex
+       
+        self.input_projection = nn.Linear(embedding_dim, hidden_dim)
+
+        self.multihead_attention = nn.MultiheadAttention(
+            embed_dim=hidden_dim,
+            num_heads=num_heads,
+            dropout=dropout
+        )
+    
+        self.projection = nn.Linear(hidden_dim, hidden_dim)
+        
+        self.expression_predictor = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.LayerNorm(64),
+            nn.ELU(),
+            nn.Dropout(p=dropout),
+            nn.Linear(64, 32),
+            nn.LayerNorm(32),
+            nn.ELU(),
+            nn.Linear(32, 1)
+        )
+
+    def forward(self, x):
+        # Input shape: [batch=1, features, time_steps, nodes]
+        batch_size, features, time_steps, nodes = x.shape
+        
+        x = x.permute(0, 3, 2, 1)  # [1, nodes, time_steps, features]
+        x_flat = x.reshape(batch_size * nodes, time_steps, features)
+        x_projected = self.input_projection(x_flat)  # [nodes, time_steps, hidden_dim]
+        
+        x_for_attn = x_projected.permute(1, 0, 2)  # [time_steps, nodes, hidden_dim]
+
+        attn_output, _ = self.multihead_attention(x_for_attn, x_for_attn, x_for_attn)
+        
+        attn_output = attn_output.permute(1, 0, 2)  # [nodes, time_steps, hidden_dim]
+        
+        projected_output = self.projection(attn_output)
+  
+        output = projected_output.reshape(batch_size, nodes, time_steps, self.hidden_dim)
+        
+        # From [batch, nodes, time_steps, hidden_dim] to [batch, time_steps, nodes, hidden_dim]
+        output = output.permute(0, 2, 1, 3)  # [1, time_steps, nodes, hidden_dim]
+       
+        predictions = self.expression_predictor(output)  # [1, time_steps, nodes, 1]
+        
+        predictions = predictions.permute(0, 3, 1, 2)  # [1, 1, time_steps, nodes]
+        
+        return predictions
 
 class STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna(nn.Module):
     def __init__(self, args, blocks, n_vertex, gene_connections):
@@ -786,6 +863,8 @@ class STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectio
         x = self.st_blocks(x)
         
         batch_size, features, time_steps, nodes = x.shape
+        #print(f"x shape: {x.shape}")
+        #print(f"Batch size: {batch_size}, Features: {features}, Time steps: {time_steps}, Nodes: {nodes}")
         
         conn_weights = self.connection_weights.unsqueeze(1)  # [nodes, 1]
         conn_embedding = self.connection_embedding(conn_weights)  # [nodes, features//2]

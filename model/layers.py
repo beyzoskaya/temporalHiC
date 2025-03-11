@@ -751,10 +751,14 @@ class STConvBlockTwoSTBlocks(nn.Module):
         self.dropout = nn.Dropout(p=droprate)
 
     def forward(self, x):
+        #print(f"STBlock input shape: {x.shape}")
         x = self.tmp_conv1(x)
+        #print(f"After first temporal conv: {x.shape}")
         x = self.graph_conv(x)
+        #print(f"After graph conv: {x.shape}")
         x = self.elu(x)
         x = self.tmp_conv2(x)
+        #print(f"After second temporal conv: {x.shape}")
         
         x = x * self.attention(x)
         
