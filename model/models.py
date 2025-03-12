@@ -495,7 +495,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         attn_output = attn_output.reshape(time_steps, batch_size, nodes, current_features)
         attn_output = attn_output.permute(1, 3, 0, 2)  # [batch, features, time_steps, nodes]
         
-        x = x + 0.4 * attn_output
+        x = x + 0.4 * attn_output # Maybe I can try with x = x + attn_output
         #x = x + 0.2 * attn_output
         
         x = x.permute(0, 2, 3, 1)  # [batch, time_steps, nodes, features]

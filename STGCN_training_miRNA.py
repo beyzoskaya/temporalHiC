@@ -121,7 +121,7 @@ def train_stgcn(dataset,val_ratio=0.2):
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
     )
     
-    #criterion = nn.MSELoss()
+    criterion = nn.MSELoss()
 
     gene_correlations = compute_gene_correlations(dataset, model)
     print("Gene Correlations:", gene_correlations)
@@ -177,13 +177,13 @@ def train_stgcn(dataset,val_ratio=0.2):
             # x
             #)
 
-            loss = miRNA_enhanced_temporal_loss(
-             output[:, :, -1:, :],
-             target,
-             x
-            )
+            #loss = miRNA_enhanced_temporal_loss(
+            # output[:, :, -1:, :],
+            # target,
+            # x
+            #)
 
-            #loss = criterion(output[:, :, -1:, :], target)
+            loss = criterion(output[:, :, -1:, :], target)
             if torch.isnan(loss):
                 print("NaN loss detected!")
                 print(f"Output range: [{output.min().item():.4f}, {output.max().item():.4f}]")
@@ -214,10 +214,10 @@ def train_stgcn(dataset,val_ratio=0.2):
                 #print(f"Shape of output in validation: {output.shape}") # --> [1, 32, 5, 52]
                 #print(f"Shape of target in validation: {target.shape}") # --> [32, 1, 52]
                 #target = target[:,:,-1:, :]
-                #val_loss = criterion(output[:, :, -1:, :], target)
+                val_loss = criterion(output[:, :, -1:, :], target)
 
                 #val_loss = enhanced_temporal_loss(output[:, :, -1:, :], target, x)
-                val_loss = miRNA_enhanced_temporal_loss(output[:, :, -1:, :], target, x)
+                #val_loss = miRNA_enhanced_temporal_loss(output[:, :, -1:, :], target, x)
 
                 val_loss_total += val_loss.item()
 
