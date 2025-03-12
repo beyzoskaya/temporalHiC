@@ -177,13 +177,13 @@ def train_stgcn(dataset,val_ratio=0.2):
             # x
             #)
 
-            #loss = miRNA_enhanced_temporal_loss(
-            # output[:, :, -1:, :],
-            # target,
-            # x
-            #)
+            loss = miRNA_enhanced_temporal_loss(
+             output[:, :, -1:, :],
+             target,
+             x
+            )
 
-            loss = criterion(output[:, :, -1:, :], target)
+            #loss = criterion(output[:, :, -1:, :], target)
             if torch.isnan(loss):
                 print("NaN loss detected!")
                 print(f"Output range: [{output.min().item():.4f}, {output.max().item():.4f}]")
@@ -214,10 +214,10 @@ def train_stgcn(dataset,val_ratio=0.2):
                 #print(f"Shape of output in validation: {output.shape}") # --> [1, 32, 5, 52]
                 #print(f"Shape of target in validation: {target.shape}") # --> [32, 1, 52]
                 #target = target[:,:,-1:, :]
-                val_loss = criterion(output[:, :, -1:, :], target)
+                #val_loss = criterion(output[:, :, -1:, :], target)
 
                 #val_loss = enhanced_temporal_loss(output[:, :, -1:, :], target, x)
-                #val_loss = miRNA_enhanced_temporal_loss(output[:, :, -1:, :], target, x)
+                val_loss = miRNA_enhanced_temporal_loss(output[:, :, -1:, :], target, x)
 
                 val_loss_total += val_loss.item()
 
@@ -312,7 +312,7 @@ def train_stgcn_check_overfitting(dataset, val_ratio=0.2):
     print("Max Correlation:", gene_correlations.max().item())
     print("Mean Correlation:", gene_correlations.mean().item())
 
-    num_epochs = 100
+    num_epochs = 30
     best_val_loss = float('inf')
     patience = 20
     patience_counter = 0
@@ -1085,21 +1085,21 @@ class Args_miRNA:
         self.droprate = 0.2
 
 if __name__ == "__main__":
-    #dataset = TemporalGraphDatasetMirna(
-    #    csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
-    #    embedding_dim=256,
-    #    #seq_len=6,
-    #    seq_len=13,
-    #    pred_len=1
-    #)
-
-    dataset = TemporalGraphDatasetMirnaNoExtraBiological(
-        csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest_without_biological_features.csv',
+    dataset = TemporalGraphDatasetMirna(
+        csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
         embedding_dim=256,
         #seq_len=6,
         seq_len=13,
         pred_len=1
     )
+
+    #dataset = TemporalGraphDatasetMirnaNoExtraBiological(
+    #    csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest_without_biological_features.csv',
+    #    embedding_dim=256,
+    #    #seq_len=6,
+    #    seq_len=13,
+    #    pred_len=1
+    #)
    
     model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn(dataset, val_ratio=0.2)
     #model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn_check_overfitting(dataset, val_ratio=0.2)
