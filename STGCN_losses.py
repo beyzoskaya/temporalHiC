@@ -222,10 +222,10 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
         corr_structure_loss = torch.tensor(0.0, device=output.device)
     
     total_loss = (
-        alpha * l1_loss +
-        beta * scaled_direction_loss + 
-        gamma * scaled_temporal_loss +
-        delta * consistency_loss
+        0.2 * l1_loss +
+        0.3 * scaled_direction_loss + 
+        0.4 * scaled_temporal_loss +
+        0.1 * consistency_loss
     )
     
     if corr_structure_loss > 0:

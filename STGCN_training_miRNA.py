@@ -129,7 +129,7 @@ def train_stgcn(dataset,val_ratio=0.2):
     print("Max Correlation:", gene_correlations.max().item())
     print("Mean Correlation:", gene_correlations.mean().item())
 
-    num_epochs = 100
+    num_epochs = 60
     best_val_loss = float('inf')
     patience = 20
     patience_counter = 0
