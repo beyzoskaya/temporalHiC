@@ -120,7 +120,13 @@ def train_stgcn(dataset,val_ratio=0.2):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
     )
-    
+    scheduler_cosine_annealing = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    optimizer, 
+    T_0=10,  
+    T_mult=2,  
+    eta_min=1e-6 
+    )
+
     criterion = nn.MSELoss()
 
     gene_correlations = compute_gene_correlations(dataset, model)
@@ -197,6 +203,8 @@ def train_stgcn(dataset,val_ratio=0.2):
         model.eval()
         val_loss = 0
         val_loss_total = 0
+        all_val_targets = []
+        all_val_outputs = []
 
         with torch.no_grad():
             for seq,label in zip(val_sequences, val_labels):
@@ -204,7 +212,8 @@ def train_stgcn(dataset,val_ratio=0.2):
                 x,target = process_batch(seq, label)
                 
                 output = model(x)
-               
+                all_val_targets.append(target.detach().cpu().numpy())
+                all_val_outputs.append(output[:, :, -1:, :].detach().cpu().numpy())
                 #_, target = process_batch(seq, label)
 
                 # Don't take the last point for temporal loss!!!
@@ -253,7 +262,7 @@ def train_stgcn(dataset,val_ratio=0.2):
             if patience_counter >= patience:
                 print("Early stopping triggered.")
                 break
-
+        
     checkpoint = torch.load(f'{save_dir}/best_model.pth', weights_only=True)
     #checkpoint = torch.load(f'{save_dir}/best_model.pth')
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -1079,7 +1088,7 @@ class Args_miRNA:
             [96, 64, 1]         # Output block
         ]
 
-        self.act_func = 'gelu'
+        self.act_func = 'gelu' # I can try gtu for activation func (gated temporal unit)
         self.graph_conv_type = 'cheb_graph_conv'
         self.enable_bias = True
         self.droprate = 0.2

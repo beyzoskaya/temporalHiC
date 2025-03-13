@@ -392,14 +392,16 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         self.Ko = Ko
         print(f"Ko: {self.Ko}")
 
+        # I changed num_layers=6 to 4 and dropout 0.3 to 0.2 lastly
         self.lstm_mirna = nn.LSTM(
             input_size=blocks[-3][-1], 
             hidden_size=blocks[-3][-1],
-            num_layers=6,
+            #num_layers=6,
+            num_layers=4,
             batch_first=True,
             bidirectional=True,
-            #dropout=0.2
-            dropout=0.3
+            dropout=0.2
+            #dropout=0.3
         )
 
         print(f"Hidden size blocks [-3][-1]: {blocks[-3][-1]}")
@@ -409,10 +411,12 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         self.lstm_norm = nn.LayerNorm([n_vertex, blocks[-3][-1]])
 
         print(f"Dimension fo embed_dim in multihead attention: {blocks[-1][0]}")
- 
+
+        # I changed num_heads=6 to 4 lastly
         self.multihead_attention = nn.MultiheadAttention(
             embed_dim=blocks[-1][0],  # Feature dimension after output block
-            num_heads=6,
+            #num_heads=6,
+            num_heads=4,
             #dropout=0.1
             dropout=0.2
         )
@@ -495,7 +499,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         attn_output = attn_output.reshape(time_steps, batch_size, nodes, current_features)
         attn_output = attn_output.permute(1, 3, 0, 2)  # [batch, features, time_steps, nodes]
         
-        x = x + 0.4 * attn_output # Maybe I can try with x = x + attn_output
+        x = x + 0.4 * attn_output 
         #x = x + 0.2 * attn_output
         
         x = x.permute(0, 2, 3, 1)  # [batch, time_steps, nodes, features]

@@ -138,6 +138,7 @@ def enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.3, 
     
     return total_loss
 
+# Try to train without scale parts for directional and temporal losses in the exact same settings
 def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta=0.2, gamma=0.3, delta=0.2):
     mse_loss = F.mse_loss(output, target)
     l1_loss = F.l1_loss(output, target)
@@ -159,7 +160,7 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
     direction_loss = 1 - torch.mean(direction_cosine)
     
     # Scale direction loss to be comparable with other components
-    scaled_direction_loss = direction_loss * 0.01
+    #scaled_direction_loss = direction_loss * 0.01
     
     def enhanced_trend_correlation(pred, target, sequence_expr):
         pred_trend = torch.cat([sequence_expr, pred], dim=1)
@@ -179,7 +180,7 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
         return corr_loss + 0.15 * smoothness_loss
  
     temporal_loss = enhanced_trend_correlation(output_reshaped, target_reshaped, input_expressions)
-    scaled_temporal_loss = temporal_loss * 0.1
+    #scaled_temporal_loss = temporal_loss * 0.1
     
     # Consistency loss - encourages predictions to be realistic extensions of history
     last_sequence_val = input_expressions[:, -1, :]
@@ -215,32 +216,20 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
         #return F.mse_loss(pred_corr, target_corr)
         return F.l1_loss(pred_corr, target_corr)
     
-    try:
-        corr_structure_loss = simplified_correlation_structure(output_reshaped, target_reshaped)
-    except Exception as e:
-        print(f"Warning: Could not calculate correlation structure loss: {str(e)}")
-        corr_structure_loss = torch.tensor(0.0, device=output.device)
-    
     total_loss = (
-        0.2 * l1_loss +
-        0.3 * scaled_direction_loss + 
-        0.4 * scaled_temporal_loss +
-        0.1 * consistency_loss
+        alpha * l1_loss +
+        beta * direction_loss + 
+        gamma * temporal_loss +
+        delta * consistency_loss
     )
-    
-    if corr_structure_loss > 0:
-        #total_loss = total_loss + 0.1 * corr_structure_loss
-        total_loss = total_loss + 0.2 * corr_structure_loss
 
     print(f"\nLoss Components:")
     #print(f"MSE Loss: {mse_loss.item():.4f}")
     print(f"L1 loss: {l1_loss.item():.4f}")
-    print(f"Direction Loss: {scaled_direction_loss.item():.4f}")
-    print(f"Temporal Loss: {scaled_temporal_loss.item():.4f}")
+    print(f"Direction Loss: {direction_loss.item():.4f}")
+    print(f"Temporal Loss: {temporal_loss.item():.4f}")
     print(f"Consistency Loss: {consistency_loss.item():.4f}")
-    if corr_structure_loss > 0:
-        print(f"Correlation Structure Loss: {corr_structure_loss.item():.4f}")
-
+   
     return total_loss
 
 def gene_specific_loss(output, target, input_sequence, gene_correlations=None, alpha=0.2, beta=0.2, gamma=0.3):
@@ -331,95 +320,4 @@ def gene_specific_loss(output, target, input_sequence, gene_correlations=None, a
     
     return total_loss
 
-class ContrastiveMiRNALoss(nn.Module):
-    def __init__(self, margin=1.0, alpha=0.5, beta=0.5):
-
-        super(ContrastiveMiRNALoss, self).__init__()
-        self.margin = margin
-        self.alpha = alpha
-        self.beta = beta
-        
-    def forward(self, pred, target):
-        mse_loss = F.mse_loss(pred, target)
-    
-        batch_size, _, time_steps, n_genes = pred.shape
-    
-        pred_flat = pred.reshape(batch_size * time_steps, n_genes)
-        target_flat = target.reshape(batch_size * time_steps, n_genes)
-        
-        pred_diff = torch.zeros_like(pred_flat)
-        target_diff = torch.zeros_like(target_flat)
-        
-        if batch_size * time_steps > 1:  
-            pred_diff[1:] = pred_flat[1:] - pred_flat[:-1]
-            target_diff[1:] = target_flat[1:] - target_flat[:-1]
-        
-        sign_match = torch.sign(pred_diff) * torch.sign(target_diff)
-        sign_agreement_loss = torch.mean(torch.abs(pred_diff - target_diff) * (sign_match > 0).float())
-        
-        sign_disagreement_loss = torch.mean(
-            torch.max(torch.zeros_like(sign_match), 
-                     self.margin - sign_match)
-        )
-        
-        contrastive_loss = sign_agreement_loss + sign_disagreement_loss
-        
-        total_loss = self.alpha * mse_loss + self.beta * contrastive_loss
-        
-        return total_loss
-
-class MiRNAExpressionLoss(nn.Module):
-    def __init__(self, mse_weight=0.4, corr_weight=0.4, dir_weight=0.2):
-        super(MiRNAExpressionLoss, self).__init__()
-        self.mse_weight = mse_weight
-        self.corr_weight = corr_weight
-        self.dir_weight = dir_weight
-        
-    def forward(self, pred, target):
-        pred_flat = pred.reshape(pred.size(0), -1)
-        target_flat = target.reshape(target.size(0), -1)
-        
-        mse_loss = F.mse_loss(pred, target)
-        
-        pred_centered = pred_flat - torch.mean(pred_flat, dim=0, keepdim=True)
-        target_centered = target_flat - torch.mean(target_flat, dim=0, keepdim=True)
-        
-        pred_std = torch.sqrt(torch.sum(pred_centered ** 2, dim=0, keepdim=True) + 1e-8)
-        target_std = torch.sqrt(torch.sum(target_centered ** 2, dim=0, keepdim=True) + 1e-8)
-        
-        correlation = torch.sum(pred_centered * target_centered, dim=0) / (pred_std * target_std + 1e-8)
-        corr_loss = 1.0 - torch.mean(correlation)
-        
-        pred_diff = pred[:, :, 1:, :] - pred[:, :, :-1, :]
-        target_diff = target[:, :, 1:, :] - target[:, :, :-1, :]
-        
-        pred_dir = torch.sign(pred_diff)
-        target_dir = torch.sign(target_diff)
-        
-        dir_match = (pred_dir == target_dir).float()
-        dir_loss = 1.0 - torch.mean(dir_match)
-        
-        total_loss = (self.mse_weight * mse_loss + 
-                      self.corr_weight * corr_loss + 
-                      self.dir_weight * dir_loss)
-        
-        return total_loss
-
-class TemporalWeightedLoss(nn.Module):
-    def __init__(self, alpha=0.7):
-        super(TemporalWeightedLoss, self).__init__()
-        self.alpha = alpha
-        self.base_criterion = nn.SmoothL1Loss(reduction='none')
-    
-    def forward(self, output, target):
-        base_loss = self.base_criterion(output, target)
-        
-        time_steps = output.shape[2]
-        weights = torch.tensor([(1 + self.alpha) ** t for t in range(time_steps)], 
-                              device=output.device).view(1, 1, -1, 1)
-        weights = weights / weights.sum()  
-        
-        weighted_loss = (base_loss * weights).sum()
-        
-        return weighted_loss
 

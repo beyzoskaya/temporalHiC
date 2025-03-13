@@ -134,16 +134,13 @@ if __name__ == "__main__":
     ]
     
     try:
-        # Run the analysis
         print("Starting GO enrichment analysis...")
         results = run_go_analysis(study_genes, background_genes)
         
         if not results.empty:
-            # Save results to CSV
             results.to_csv('go_enrichment_results.csv', index=False)
             print("\nResults saved to 'go_enrichment_results.csv'")
             
-            # Display results
             print("\nTop enriched GO terms:")
             display_cols = ['GO_term', 'namespace', 'p_adj', 'enrichment_ratio', 'genes']
             pd.set_option('display.max_colwidth', None)
