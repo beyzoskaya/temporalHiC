@@ -1088,7 +1088,7 @@ class Args_miRNA:
             [96, 64, 1]         # Output block
         ]
 
-        self.act_func = 'gelu' # I can try gtu for activation func (gated temporal unit)
+        self.act_func = 'gelu'
         self.graph_conv_type = 'cheb_graph_conv'
         self.enable_bias = True
         self.droprate = 0.2

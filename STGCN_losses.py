@@ -160,7 +160,7 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
     direction_loss = 1 - torch.mean(direction_cosine)
     
     # Scale direction loss to be comparable with other components
-    #scaled_direction_loss = direction_loss * 0.01
+    scaled_direction_loss = direction_loss * 0.01
     
     def enhanced_trend_correlation(pred, target, sequence_expr):
         pred_trend = torch.cat([sequence_expr, pred], dim=1)
@@ -180,7 +180,7 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
         return corr_loss + 0.15 * smoothness_loss
  
     temporal_loss = enhanced_trend_correlation(output_reshaped, target_reshaped, input_expressions)
-    #scaled_temporal_loss = temporal_loss * 0.1
+    scaled_temporal_loss = temporal_loss * 0.1
     
     # Consistency loss - encourages predictions to be realistic extensions of history
     last_sequence_val = input_expressions[:, -1, :]
@@ -218,8 +218,8 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
     
     total_loss = (
         alpha * l1_loss +
-        beta * direction_loss + 
-        gamma * temporal_loss +
+        beta * scaled_direction_loss + 
+        gamma * scaled_temporal_loss +
         delta * consistency_loss
     )
 

@@ -592,7 +592,7 @@ class OutputBlock(nn.Module):
         self.fc2 = nn.Linear(in_features=channels[1], out_features=end_channel, bias=bias)
         self.tc1_ln = nn.LayerNorm([n_vertex, channels[0]], eps=1e-12)
         self.relu = nn.ReLU()
-        self.elu = nn.ELU()
+        self.gelu = nn.GELU() 
         #self.dropout = nn.Dropout(p=droprate)
 
     def forward(self, x):
@@ -604,6 +604,56 @@ class OutputBlock(nn.Module):
         x = self.fc2(x).permute(0, 3, 1, 2)
 
         return x
+
+class TemporalEnhancedOutputBlock(nn.Module):
+    def __init__(self, Ko, last_block_channel, channels, end_channel, n_vertex, act_func, bias, droprate):
+        super(TemporalEnhancedOutputBlock, self).__init__()
+        
+        self.tmp_conv1 = TemporalConvLayer(Ko, last_block_channel, channels[0], n_vertex, act_func)
+
+        self.tc1_ln = nn.LayerNorm([n_vertex, channels[0]], eps=1e-12)
+
+        self.tmp_conv2 = nn.Conv2d(
+            in_channels=channels[0],
+            out_channels=channels[1],
+            kernel_size=(1, 1),  # 1×1 convolution to act like a FC layer but preserve spatial structure
+            stride=1,
+            padding=(0, 0),
+            bias=bias
+        )
+        
+        self.fc2 = nn.Linear(in_features=channels[1], out_features=end_channel, bias=bias)
+     
+        self.relu = nn.ReLU()
+        self.gelu = nn.GELU()
+ 
+        self.dropout = nn.Dropout(p=droprate)
+        self.use_dropout = (droprate > 0)
+
+    def forward(self, x):
+        x = self.tmp_conv1(x)
+        
+        x_norm = self.tc1_ln(x.permute(0, 2, 3, 1))
+ 
+        x_act = self.gelu(x_norm)
+        
+        if self.use_dropout:
+            x_act = self.dropout(x_act)
+      
+        x_back = x_act.permute(0, 3, 1, 2)
+    
+        x_conv2 = self.tmp_conv2(x_back)
+        
+        x_fc = x_conv2.permute(0, 2, 3, 1)
+        
+        x_fc = self.relu(x_fc)
+
+        if self.use_dropout:
+            x_fc = self.dropout(x_fc)
+
+        x_out = self.fc2(x_fc).permute(0, 3, 1, 2)
+        
+        return x_out
 
 class TemporalSelfAttention(nn.Module):
     def __init__(self, in_channels, n_vertex):
@@ -762,37 +812,6 @@ class STConvBlockTwoSTBlocks(nn.Module):
         
         x = x * self.attention(x)
         
-        x = self.tc2_ln(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
-        x = self.dropout(x)
-        
-        return x
-
-class STConvBlockTwoSTBlocksWithoutAdditionalAttention(nn.Module):
-    def __init__(self, Kt, Ks, n_vertex, last_block_channel, channels, act_func, graph_conv_type, gso, bias, droprate):
-        super(STConvBlockTwoSTBlocks, self).__init__()
-        self.gso = gso
-        self.tmp_conv1 = TemporalConvLayer(Kt, last_block_channel, channels[0], n_vertex, act_func)
-        self.graph_conv = GraphConvLayer(graph_conv_type, channels[0], channels[1], Ks, gso, bias)
-        self.tmp_conv2 = TemporalConvLayer(Kt, channels[1], channels[2], n_vertex, act_func)
-
-        print(f"channels[0]: {channels[2]}")
-        print(f"channels[1]: {channels[2]}")
-        print(f"channels[2]: {channels[2]}")
-
-        self.tc2_ln = nn.LayerNorm([n_vertex, channels[2]], eps=1e-12)
-        self.elu = nn.ELU()
-        self.dropout = nn.Dropout(p=droprate)
-
-    def forward(self, x):
-        #print(f"STBlock input shape: {x.shape}")
-        x = self.tmp_conv1(x)
-        #print(f"After first temporal conv: {x.shape}")
-        x = self.graph_conv(x)
-        #print(f"After graph conv: {x.shape}")
-        x = self.elu(x)
-        x = self.tmp_conv2(x)
-        #print(f"After second temporal conv: {x.shape}")
-
         x = self.tc2_ln(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
         x = self.dropout(x)
         

@@ -380,6 +380,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         
         modules = []
         for l in range(len(blocks) - 3):
+            # I am trying without attention STConvBlock layer because tempconv and graphconv already have attention
             modules.append(layers.STConvBlockTwoSTBlocks(args.Kt, args.Ks, n_vertex, blocks[l][-1], blocks[l+1], 
                                             args.act_func, args.graph_conv_type, args.gso, 
                                             args.enable_bias, args.droprate))
@@ -392,7 +393,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         self.Ko = Ko
         print(f"Ko: {self.Ko}")
 
-        # I changed num_layers=6 to 4 and dropout 0.3 to 0.2 lastly
+        # I changed dropour from 0.2 to 0.3 lastly
         self.lstm_mirna = nn.LSTM(
             input_size=blocks[-3][-1], 
             hidden_size=blocks[-3][-1],
@@ -400,7 +401,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
             num_layers=4,
             batch_first=True,
             bidirectional=True,
-            dropout=0.2
+            dropout=0.3
             #dropout=0.3
         )
 
@@ -412,20 +413,25 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
 
         print(f"Dimension fo embed_dim in multihead attention: {blocks[-1][0]}")
 
-        # I changed num_heads=6 to 4 lastly
+        # I changed dropout 0.2 to 0.3 lastly 
         self.multihead_attention = nn.MultiheadAttention(
             embed_dim=blocks[-1][0],  # Feature dimension after output block
             #num_heads=6,
             num_heads=4,
             #dropout=0.1
-            dropout=0.2
+            dropout=0.3
         )
 
         self.attention_scale = nn.Parameter(torch.tensor(0.1))
 
+        #if self.Ko > 1:
+        #    self.output = layers.OutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
+        #                                   n_vertex, args.act_func, args.enable_bias, args.droprate)
+        
         if self.Ko > 1:
-            self.output = layers.OutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
-                                           n_vertex, args.act_func, args.enable_bias, args.droprate)
+            self.output = layers.TemporalEnhancedOutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
+                                   n_vertex, args.act_func, args.enable_bias, args.droprate)
+
         elif self.Ko == 0:
             self.fc1 = nn.Linear(in_features=blocks[-3][-1], out_features=blocks[-2][0], 
                                 bias=args.enable_bias)
