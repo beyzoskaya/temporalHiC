@@ -424,13 +424,13 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
 
         self.attention_scale = nn.Parameter(torch.tensor(0.1))
 
-        #if self.Ko > 1:
-        #    self.output = layers.OutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
-        #                                   n_vertex, args.act_func, args.enable_bias, args.droprate)
-        
         if self.Ko > 1:
-            self.output = layers.TemporalEnhancedOutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
-                                   n_vertex, args.act_func, args.enable_bias, args.droprate)
+            self.output = layers.OutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
+                                           n_vertex, args.act_func, args.enable_bias, args.droprate)
+        
+        #if self.Ko > 1:
+        #    self.output = layers.TemporalEnhancedOutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
+        #                           n_vertex, args.act_func, args.enable_bias, args.droprate)
 
         elif self.Ko == 0:
             self.fc1 = nn.Linear(in_features=blocks[-3][-1], out_features=blocks[-2][0], 

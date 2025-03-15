@@ -1032,7 +1032,7 @@ class Args_miRNA:
 
         self.Kt=3
         self.Ks=3
-        self.n_his=13
+        self.n_his=10
         #self.n_his=17 # I am changing number of historical time steps because number of ST blocks are increased, Ko become < 0!
         self.n_pred = 1
        
@@ -1098,7 +1098,8 @@ if __name__ == "__main__":
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
         embedding_dim=256,
         #seq_len=6,
-        seq_len=13,
+        #seq_len=13,
+        seq_len=10,
         pred_len=1
     )
 
