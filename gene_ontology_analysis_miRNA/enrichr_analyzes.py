@@ -88,7 +88,7 @@ def plot_top_terms(results_dict, output_file='go_visualization_negative_corel.pd
         current_plot += 1
     
     plt.tight_layout()
-    plt.savefig('go_terms_barplot_miRNA.pdf', bbox_inches='tight')
+    plt.savefig('go_terms_barplot_miRNA_upregulated.pdf', bbox_inches='tight')
     plt.close()
 
 def plot_volcano(results_dict, output_file='go_volcano_negative_corel.pdf'):
@@ -125,7 +125,7 @@ def plot_volcano(results_dict, output_file='go_volcano_negative_corel.pdf'):
     plt.title('GO Terms Enrichment Analysis')
     plt.legend()
     
-    plt.savefig('go_terms_volcano_miRNA.pdf', bbox_inches='tight')
+    plt.savefig('go_terms_volcano_miRNA_upregulated.pdf', bbox_inches='tight')
     plt.close()
 
 def plot_gene_term_heatmap(results_dict, genes, min_pvalue=0.1, max_terms=20):
@@ -190,7 +190,7 @@ def plot_gene_term_heatmap(results_dict, genes, min_pvalue=0.1, max_terms=20):
         
         plt.tight_layout()
         
-        plt.savefig('gene_term_heatmap_relaxed_p_value_miRNA.pdf', 
+        plt.savefig('gene_term_heatmap_relaxed_p_value_miRNA_upregulated.pdf', 
                    bbox_inches='tight', 
                    dpi=300)
         plt.close()
@@ -277,10 +277,10 @@ def plot_go_term_clusters(results_dict, genes, min_pvalue=0.1, max_terms=30):
         
         plt.suptitle('GO Term and Gene Clusters', fontsize=14, y=0.95)
         
-        plt.savefig('go_clusters_miRNA.pdf', bbox_inches='tight', dpi=300)
+        plt.savefig('go_clusters_miRNA_upregulated.pdf', bbox_inches='tight', dpi=300)
         plt.close()
         
-        with open('go_clusters_details.txt', 'w') as f:
+        with open('go_clusters_details_upregulated.txt', 'w') as f:
             f.write("GO Term Clusters Analysis Details:\n\n")
             f.write("Genes in order of clustering:\n")
             f.write(", ".join(ordered_genes) + "\n\n")
@@ -333,7 +333,7 @@ def plot_enrichment_bubble(results_dict):
     plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     
     plt.tight_layout()
-    plt.savefig('enrichment_bubble_miRNA.pdf', bbox_inches='tight')
+    plt.savefig('enrichment_bubble_miRNA_upregulated.pdf', bbox_inches='tight')
     plt.close()
 
 def plot_term_network(results_dict, max_terms_per_category=8, min_pvalue=0.1):
@@ -431,14 +431,14 @@ def plot_term_network(results_dict, max_terms_per_category=8, min_pvalue=0.1):
         plt.axis('equal')
         plt.axis('off')
         
-        plt.savefig('term_network_p_value_relaxed_miRNA.pdf', 
+        plt.savefig('term_network_p_value_relaxed_miRNA_upregulated.pdf', 
                    bbox_inches='tight',
                    dpi=300)
         plt.close()
         
         print(f"Generated network plot with {len(significant_terms)} terms")
         
-        with open('network_terms_details_p_value_relaxed.txt', 'w') as f:
+        with open('network_terms_details_p_value_relaxed_upregulated.txt', 'w') as f:
             f.write("GO Terms Network Details:\n\n")
             for term in significant_terms:
                 f.write(f"Term: {term['term']}\n")
@@ -447,7 +447,7 @@ def plot_term_network(results_dict, max_terms_per_category=8, min_pvalue=0.1):
                 f.write(f"Combined score: {term['score']:.2f}\n")
                 f.write("\n")
         
-        print("Saved term details to 'network_terms_details.txt'")
+        print("Saved term details to 'network_terms_details_upregulated.txt'")
     else:
         print("No significant terms found for network plot")
 
@@ -471,7 +471,7 @@ def plot_significance_distribution(results_dict):
         plt.title('Distribution of Term Significance by Category')
         
         plt.tight_layout()
-        plt.savefig('significance_distribution_miRNA.pdf', bbox_inches='tight')
+        plt.savefig('significance_distribution_miRNA_upregulated.pdf', bbox_inches='tight')
         plt.close()
 
 def run_mouse_go_analysis():
@@ -535,17 +535,17 @@ def run_mouse_go_analysis():
     for db, name in databases.items():
         print(f"\nAnalyzing {name} using {db}...")
         try:
-            results[name] = get_enrichr_results(genes_miRNA, db)
+            results[name] = get_enrichr_results(genes_miRNA_upregulated, db)
         except Exception as e:
             print(f"Warning: Error analyzing {name}: {str(e)}")
             results[name] = pd.DataFrame()
     
-    with pd.ExcelWriter('mouse_go_analysis_results_miRNA.xlsx') as writer:
+    with pd.ExcelWriter('mouse_go_analysis_results_miRNA_upregulated.xlsx') as writer:
         for name, df in results.items():
             if not df.empty:
                 df.to_excel(writer, sheet_name=name, index=False)
     
-    print("\nResults saved to 'mouse_go_analysis_results_miRNA.xlsx'")
+    print("\nResults saved to 'mouse_go_analysis_results_miRNA_upregulated.xlsx'")
     
     for name, df in results.items():
         print(f"\nTop {name} terms:")
@@ -562,17 +562,17 @@ def run_mouse_go_analysis():
     print("\nCreating visualizations...")
     plot_top_terms(results)
     plot_volcano(results)
-    plot_gene_term_heatmap(results, genes_miRNA, min_pvalue=0.05, max_terms=15)
-    plot_gene_term_heatmap(results, genes_miRNA, min_pvalue=0.1, max_terms=30)
+    plot_gene_term_heatmap(results, genes_miRNA_upregulated, min_pvalue=0.05, max_terms=15)
+    #plot_gene_term_heatmap(results, genes_miRNA, min_pvalue=0.1, max_terms=30)
     print("plot_gene_term_heatmap done!'")
     plot_enrichment_bubble(results)
     print("plot_enrichment_bubble done!'")
     plot_term_network(results, max_terms_per_category=5, min_pvalue=0.05)
-    plot_term_network(results, max_terms_per_category=8, min_pvalue=0.1)
+    #plot_term_network(results, max_terms_per_category=8, min_pvalue=0.1)
     print("plot_term_network done!'")
     plot_significance_distribution(results)
     print("Visualizations saved as 'go_terms_barplot_negative_corel.pdf' and 'go_terms_volcano_negative_corel.pdf'")
-    plot_go_term_clusters(results, genes_miRNA)
+    plot_go_term_clusters(results, genes_miRNA_upregulated)
     print("New visualizations done!'")
 
     

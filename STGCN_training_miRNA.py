@@ -17,7 +17,7 @@ import sys
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 #sys.path.append('./STGCN')
 #from STGCN.model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights
-from model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights,BiLSTMExpressionPredictor,MultiHeadAttentionPredictor
+from model.models import  STGCNChebGraphConvProjectedGeneConnectedAttentionLSTM,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirna,STGCNChebGraphConvProjectedGeneConnectedTransformerAttentionMirnaConnectionWeights,BiLSTMExpressionPredictor,MultiHeadAttentionPredictor,STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirnaWithNumberOfConnections
 import argparse
 import random
 from scipy.spatial.distance import cdist
@@ -85,6 +85,29 @@ def compute_gene_connections(dataset):
         connections[idx] = float(count1 + count2)
     return connections
 
+def compute_number_of_connections(dataset):
+    genes = list(dataset.node_map.keys())
+
+    gene_connections = {}
+    
+    print("\nNumber of Connections per Gene:")
+    print("-------------------------------")
+    
+    for gene in genes:
+        gene_idx = dataset.node_map[gene]
+        degree = len(dataset.base_graph[gene])
+        gene_connections[gene_idx] = degree
+        print(f"{gene}: {degree} connections")
+    
+    # Print some summary statistics
+    degrees = list(gene_connections.values())
+    print("\nConnection Statistics:")
+    print(f"Average connections per gene: {sum(degrees)/len(degrees):.2f}")
+    print(f"Maximum connections: {max(degrees)}")
+    print(f"Minimum connections: {min(degrees)}")
+    
+    return gene_connections
+
 def train_stgcn(dataset,val_ratio=0.2):
     args = Args_miRNA()
     args.n_vertex = dataset.num_nodes
@@ -112,8 +135,9 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
-    
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim, args.n_vertex, gene_connections)
+    number_of_connections = compute_number_of_connections(dataset)
+
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirnaWithNumberOfConnections(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim, args.n_vertex, number_of_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)

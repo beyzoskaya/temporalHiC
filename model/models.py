@@ -377,7 +377,7 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
         connections = torch.tensor([gene_connections.get(i, 0) for i in range(n_vertex)], 
                                  dtype=torch.float32)
         self.connection_weights = F.softmax(connections, dim=0)
-        
+
         modules = []
         for l in range(len(blocks) - 3):
             # I am trying without attention STConvBlock layer because tempconv and graphconv already have attention
@@ -531,6 +531,181 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
                     elif 'bias' in name:
                         nn.init.constant_(param, 0)
 
+class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirnaWithNumberOfConnections(nn.Module):
+    def __init__(self, args, blocks, n_vertex, gene_connections):
+        super(STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirnaWithNumberOfConnections, self).__init__()
+    
+        self.connections_raw = torch.tensor([gene_connections.get(i, 0) for i in range(n_vertex)], 
+                                 dtype=torch.float32)
+        self.connection_weights = F.softmax(self.connections_raw, dim=0)
+        
+        self.genes_with_27_connections = torch.where(self.connections_raw == 27.0)[0]
+        print(f"Genes with exactly 27 connections: {self.genes_with_27_connections.tolist()}")
+        
+        self.lstm_standard = nn.LSTM(
+            input_size=blocks[-3][-1], 
+            hidden_size=blocks[-3][-1],
+            num_layers=4,
+            batch_first=True,
+            bidirectional=True,
+            dropout=0.3
+        )
+        
+        self.lstm_special = nn.LSTM(
+            input_size=blocks[-3][-1], 
+            hidden_size=blocks[-3][-1],
+            num_layers=6,  # More layers for genes with 27 connections
+            batch_first=True,
+            bidirectional=True,
+            dropout=0.3
+        )
+        
+        self.attention_standard = nn.MultiheadAttention(
+            embed_dim=blocks[-1][0],
+            num_heads=4,
+            dropout=0.3
+        )
+        
+        self.attention_special = nn.MultiheadAttention(
+            embed_dim=blocks[-1][0],
+            num_heads=6,  # More heads for genes with 27 connections
+            dropout=0.3
+        )
+
+        modules = []
+        for l in range(len(blocks) - 3):
+            modules.append(layers.STConvBlockTwoSTBlocks(args.Kt, args.Ks, n_vertex, blocks[l][-1], blocks[l+1], 
+                                            args.act_func, args.graph_conv_type, args.gso, 
+                                            args.enable_bias, args.droprate))
+        self.st_blocks = nn.Sequential(*modules)
+
+        Ko = args.n_his - (len(blocks) - 3) * 2 * (args.Kt - 1)
+        self.Ko = Ko
+        print(f"Ko: {self.Ko}")
+
+        print(f"Hidden size blocks [-3][-1]: {blocks[-3][-1]}")
+    
+        self.lstm_proj = nn.Linear(2 * blocks[-3][-1], blocks[-3][-1])  # *2 for bidirectional
+        
+        self.lstm_norm = nn.LayerNorm([n_vertex, blocks[-3][-1]])
+
+        print(f"Dimension fo embed_dim in multihead attention: {blocks[-1][0]}")
+
+        self.attention_scale = nn.Parameter(torch.tensor(0.1))
+
+        if self.Ko > 1:
+            self.output = layers.OutputBlock(Ko, blocks[-3][-1], blocks[-2], blocks[-1][0], 
+                                           n_vertex, args.act_func, args.enable_bias, args.droprate)
+        elif self.Ko == 0:
+            self.fc1 = nn.Linear(in_features=blocks[-3][-1], out_features=blocks[-2][0], 
+                                bias=args.enable_bias)
+            self.fc2 = nn.Linear(in_features=blocks[-2][0], out_features=blocks[-1][0], 
+                                bias=args.enable_bias)
+            self.relu = nn.ReLU()
+            self.dropout = nn.Dropout(p=args.droprate)
+
+        self.expression_proj_mirna = nn.Sequential(
+            nn.Linear(blocks[-1][0], 32),
+            nn.LayerNorm(32),
+            nn.ELU(),
+            nn.Dropout(p=0.1),
+            nn.Linear(32, 16),
+            nn.LayerNorm(16),
+            nn.ELU(),
+            nn.Linear(16, 1)
+        )
+    
+        self._init_weights()
+
+    def forward(self, x):
+        x = self.st_blocks(x)
+        
+        batch_size, features, time_steps, nodes = x.shape
+        
+        x_lstm = x.permute(0, 3, 2, 1)  # [batch, nodes, time_steps, features]
+        x_lstm = x_lstm.reshape(batch_size * nodes, time_steps, features)
+        #print(f"x_lstm shape: {x_lstm.shape}")
+
+        lstm_out = torch.zeros(batch_size * nodes, time_steps, features * 2)
+
+        for i in range(nodes):
+            indices = torch.arange(i, batch_size * nodes, nodes)
+            
+            gene_data = x_lstm[indices]
+            #print(f"gene_data shape: {gene_data.shape}")
+            
+            if i in self.genes_with_27_connections:
+                gene_lstm_out, _ = self.lstm_special(gene_data)
+                #print(f"gene_lstm_out shape for 27 connected genes: {gene_lstm_out.shape}")
+            else:
+                gene_lstm_out, _ = self.lstm_standard(gene_data)
+                #print(f"gene_lstm_out shape for other genes: {gene_lstm_out.shape}")
+            
+            lstm_out[indices] = gene_lstm_out
+            #print(f"lstm_out shape before projection: {lstm_out.shape}")
+  
+        lstm_out = self.lstm_proj(lstm_out)  # This reduces from 2*features to features
+        #print(f"lstm_out shape after projection: {lstm_out.shape}")
+        
+        lstm_out = lstm_out.reshape(batch_size, nodes, time_steps, features)
+        lstm_out = lstm_out.permute(0, 3, 2, 1)
+        
+        x = x + lstm_out
+        x = self.lstm_norm(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+ 
+        if self.Ko > 1:
+            x = self.output(x)
+        elif self.Ko == 0:
+            x = self.fc1(x.permute(0, 2, 3, 1))
+            x = self.relu(x)
+            x = self.dropout(x)
+            x = self.fc2(x).permute(0, 3, 1, 2)
+ 
+        _, current_features, time_steps, nodes = x.shape
+        
+        attn_outputs = []
+        for t in range(time_steps):
+            time_attn_outputs = []
+            for node_idx in range(nodes):
+              
+                node_features = x[:, :, t, node_idx].unsqueeze(0)  # [1, batch, features]
+                
+                if node_idx in self.genes_with_27_connections:
+                    attn_out, _ = self.attention_special(node_features, node_features, node_features)
+                else:
+                    attn_out, _ = self.attention_standard(node_features, node_features, node_features)
+                    
+                time_attn_outputs.append(attn_out)
+            
+            time_attn_out = torch.cat(time_attn_outputs, dim=0)  # [nodes, batch, features]
+            attn_outputs.append(time_attn_out)
+
+        attn_output = torch.stack(attn_outputs, dim=0)  # [time_steps, nodes, batch, features]
+        attn_output = attn_output.permute(2, 3, 0, 1)  # [batch, features, time_steps, nodes]
+      
+        x = x + 0.4 * attn_output
+        
+        x = x.permute(0, 2, 3, 1)  # [batch, time_steps, nodes, features]
+        x = self.expression_proj_mirna(x)
+        x = x.permute(0, 3, 1, 2)  # [batch, features, time_steps, nodes]
+        
+        return x
+    
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.LayerNorm):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.LSTM):
+                for name, param in m.named_parameters():
+                    if 'weight' in name:
+                        nn.init.orthogonal_(param)
+                    elif 'bias' in name:
+                        nn.init.constant_(param, 0)
 
 """
 model call parameters while training
