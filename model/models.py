@@ -386,6 +386,8 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
                                             args.enable_bias, args.droprate))
         self.st_blocks = nn.Sequential(*modules)
 
+        self.global_attention_scale = nn.Parameter(torch.tensor(0.4)) # I add this for the residual amount as a learnable parameter because I got worse results with adding residual directly
+
         """
         Ko represents the remaining length of the temporal sequence after it passes through all the spatial-temporal convolutional blocks
         """  
@@ -504,8 +506,8 @@ class STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(nn.Mod
 
         attn_output = attn_output.reshape(time_steps, batch_size, nodes, current_features)
         attn_output = attn_output.permute(1, 3, 0, 2)  # [batch, features, time_steps, nodes]
-        
-        x = x + 0.4 * attn_output 
+    
+        x = x + self.global_attention_scale * attn_output 
         #x = x + 0.2 * attn_output
         
         x = x.permute(0, 2, 3, 1)  # [batch, time_steps, nodes, features]
