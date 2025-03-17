@@ -1,0 +1,12 @@
+GO Terms Network Details:
+
+Term: maturation of 5.8S rRNA from tricistronic rRNA transcript (SSU-rRNA, 5.8S rRNA, LSU-rRNA) (GO:0000466)
+Category: Biological Process
+P-value: 1.24e-02
+Combined score: 647.58
+
+Term: preribosome, large subunit precursor (GO:0030687)
+Category: Cellular Component
+P-value: 1.87e-03
+Combined score: 607.09
+
