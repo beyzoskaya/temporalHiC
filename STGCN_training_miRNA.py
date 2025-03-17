@@ -137,7 +137,7 @@ def train_stgcn(dataset,val_ratio=0.2):
     gene_connections = compute_gene_connections(dataset)
     number_of_connections = compute_number_of_connections(dataset)
 
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirnaWithNumberOfConnections(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim, args.n_vertex, number_of_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim_smoother, args.n_vertex, number_of_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
@@ -1102,6 +1102,15 @@ class Args_miRNA:
             [128, 192, 192],    # Third ST block output (doubled from 96)
             [192, 128, 1]       # Output block (doubled intermediate dimension)
         ]
+
+        self.blocks_temporal_node2vec_with_three_st_blocks_256dim_smoother = [
+            [256, 256, 256],
+            [256, 224, 224],    
+            [224, 192, 192],
+            [192, 224, 224],   
+            [224, 128, 1]
+        ]
+
 
         self.blocks_temporal_node2vec_with_four_st_blocks = [
             [128, 128, 128],    # Initial block
