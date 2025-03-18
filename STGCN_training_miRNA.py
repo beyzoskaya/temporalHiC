@@ -1131,7 +1131,6 @@ if __name__ == "__main__":
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
         embedding_dim=256,
         #seq_len=6,
-        #seq_len=13,
         seq_len=10,
         pred_len=1
     )
