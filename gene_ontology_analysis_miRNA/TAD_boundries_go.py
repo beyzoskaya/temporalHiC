@@ -10,6 +10,7 @@ import logging
 import matplotlib.pyplot as plt
 import seaborn as sns
 import textwrap
+from adjustText import adjust_text
 
 ENRICHR_URL = "https://maayanlab.cloud/Enrichr"
 logging.basicConfig(level=logging.INFO)
@@ -206,6 +207,68 @@ def plot_insulation_scores_with_boundaries(chrom_df, strong_boundaries, weak_bou
     plt.savefig(f'GO_results_TAD/insulation_score_with_boundries_{chromosome_name}.pdf')
     plt.show()
 
+def plot_insulation_score_real_gene_positions(chrom_df, strong_boundaries, weak_boundaries, chromosome_name):
+    plt.figure(figsize=(14, 8))
+    chrom_df = chrom_df.sort_values('Gene1_Start').reset_index(drop=True)
+
+    x_positions = chrom_df['Gene1_Start'] / 1_000_000  # Convert to Mb
+
+    plt.plot(x_positions, chrom_df['Gene1_Insulation_Score'], label='Gene1 Insulation Score', color='b', alpha=0.6)
+    plt.plot(x_positions, chrom_df['Gene2_Insulation_Score'], label='Gene2 Insulation Score', color='g', alpha=0.6)
+    
+    strong_indices = chrom_df[chrom_df['Gene1_clean'].isin(strong_boundaries)].index.tolist()
+    weak_indices = chrom_df[chrom_df['Gene1_clean'].isin(weak_boundaries)].index.tolist()
+    
+    strong_positions = chrom_df.loc[strong_indices, 'Gene1_Start'] / 1_000_000
+    weak_positions = chrom_df.loc[weak_indices, 'Gene1_Start'] / 1_000_000
+    
+    plt.scatter(strong_positions, chrom_df.loc[strong_indices, 'Gene1_Insulation_Score'], 
+                color='red', label='Strong Boundaries', zorder=5)
+    plt.scatter(weak_positions, chrom_df.loc[weak_indices, 'Gene1_Insulation_Score'], 
+                color='orange', label='Weak Boundaries', zorder=5)
+    
+    gene_list = pd.concat([df['Gene1_clean'], df['Gene2_clean']]).unique().tolist()
+    genes_to_highlight = gene_list
+    
+    for gene in genes_to_highlight:
+        if gene in chrom_df['Gene1_clean'].values:
+            gene_row = chrom_df[chrom_df['Gene1_clean'] == gene].iloc[0]
+            gene_pos = gene_row['Gene1_Start'] / 1_000_000  # Convert to Mb
+            y_pos = gene_row['Gene1_Insulation_Score']
+            
+            plt.axvline(x=gene_pos, color='purple', linestyle='--', alpha=0.7)
+            plt.text(gene_pos, max(chrom_df['Gene1_Insulation_Score'])*0.9, 
+                     f"{gene}\n({gene_pos:.2f}Mb)", 
+                     rotation=90, verticalalignment='top')
+    
+    for gene in genes_to_highlight:
+        if gene in chrom_df['Gene1_clean'].values:
+            for idx, row in chrom_df[chrom_df['Gene1_clean'] == gene].iterrows():
+                partner_gene = row['Gene2_clean']
+                partner_pos = row['Gene2_Start'] / 1_000_000  # Convert to Mb
+                
+                gene_pos = row['Gene1_Start'] / 1_000_000
+                y_level = row['Gene1_Insulation_Score'] * 0.8  # Position below the main points
+                
+                plt.annotate('', 
+                            xy=(partner_pos, y_level), 
+                            xytext=(gene_pos, y_level),
+                            arrowprops=dict(arrowstyle='<->', color='black', alpha=0.5))
+                
+                plt.text(partner_pos, y_level*0.95, 
+                         f"{partner_gene}\n({partner_pos:.2f}Mb)", 
+                         fontsize=8, color='black', ha='center')
+    
+    plt.title(f"Insulation Scores and TAD Boundaries for Chromosome {chromosome_name}")
+    plt.xlabel("Chromosome Position (Mb)")
+    plt.ylabel("Insulation Score")
+    plt.legend(loc='best')
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(f'GO_results_TAD/insulation_score_with_boundaries_and_positions_{chromosome_name}.pdf')
+    plt.show()
+
 def plot_combined_insulation_scores(chrom_df, strong_boundaries, weak_boundaries, chromosome_name):
     chrom_df["Combined_Insulation_Score"] = (chrom_df["Gene1_Insulation_Score"] + chrom_df["Gene2_Insulation_Score"]) / 2
 
@@ -311,6 +374,232 @@ def plot_tad_go_heatmap(excel_file, tad_sheet_name, top_n=10):
     else:
         print(f"Missing necessary columns in {tad_sheet_name} for heatmap plotting.")
 
+
+def plot_insulation_scores_with_boundaries_and_gene_positions(chrom_df, strong_boundaries, weak_boundaries, chromosome_name):
+    plt.figure(figsize=(14, 8))
+    
+    chrom_df = chrom_df.sort_values('Gene1_Start').reset_index(drop=True)
+   
+    x_positions = chrom_df['Gene1_Start'] / 1_000_000
+    
+    plt.plot(x_positions, chrom_df['Gene1_Insulation_Score'], 
+             label='Gene1 Insulation Score', color='blue')
+    plt.plot(x_positions, chrom_df['Gene2_Insulation_Score'], 
+             label='Gene2 Insulation Score', color='green')
+  
+    strong_mask = chrom_df['Gene1_clean'].isin(strong_boundaries)
+    weak_mask = chrom_df['Gene1_clean'].isin(weak_boundaries)
+    
+    # boundary points
+    plt.scatter(
+        chrom_df.loc[strong_mask, 'Gene1_Start'] / 1_000_000,
+        chrom_df.loc[strong_mask, 'Gene1_Insulation_Score'],
+        color='red', label='Strong Boundaries', zorder=5, s=50
+    )
+    
+    plt.scatter(
+        chrom_df.loc[weak_mask, 'Gene1_Start'] / 1_000_000,
+        chrom_df.loc[weak_mask, 'Gene1_Insulation_Score'],
+        color='orange', label='Weak Boundaries', zorder=5, s=50
+    )
+    
+    position_gene_map_strong = {}
+    position_gene_map_weak = {}
+    
+    for gene in strong_boundaries:
+        if gene in chrom_df['Gene1_clean'].values:
+            gene_rows = chrom_df[chrom_df['Gene1_clean'] == gene]
+            for _, row in gene_rows.iterrows():
+                gene_pos = row['Gene1_Start'] / 1_000_000
+                y_pos = row['Gene1_Insulation_Score']
+                
+                rounded_pos = round(gene_pos, 1)
+                
+                if rounded_pos not in position_gene_map_strong:
+                    position_gene_map_strong[rounded_pos] = []
+                
+                if gene not in [g for g, _ in position_gene_map_strong[rounded_pos]]:
+                    position_gene_map_strong[rounded_pos].append((gene, y_pos))
+
+    for gene in weak_boundaries:
+        if gene in chrom_df['Gene1_clean'].values:
+            gene_rows = chrom_df[chrom_df['Gene1_clean'] == gene]
+            for _, row in gene_rows.iterrows():
+                gene_pos = row['Gene1_Start'] / 1_000_000
+                y_pos = row['Gene1_Insulation_Score']
+                
+                rounded_pos = round(gene_pos, 1)
+                
+                if rounded_pos not in position_gene_map_weak:
+                    position_gene_map_weak[rounded_pos] = []
+                
+                if gene not in [g for g, _ in position_gene_map_weak[rounded_pos]]:
+                    position_gene_map_weak[rounded_pos].append((gene, y_pos))
+    
+    texts = []
+    for pos, gene_list in position_gene_map_strong.items():
+        if len(gene_list) == 1:
+            # Single gene at this position
+            gene, y_pos = gene_list[0]
+            texts.append(plt.text(
+                pos, y_pos, gene,
+                fontsize=9, ha='center', va='bottom',
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='red', pad=1),
+                weight='bold'
+            ))
+        else:
+            # Multiple genes at this position - create a stacked label
+            gene_names = [g for g, _ in gene_list]
+            y_pos = max([y for _, y in gene_list])
+            
+            # Join genes with newlines for stacking
+            stacked_label = '\n'.join(gene_names)
+            
+            texts.append(plt.text(
+                pos, y_pos, stacked_label,
+                fontsize=8, ha='center', va='bottom',
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='red', pad=1),
+                weight='bold',
+                linespacing=0.8
+            ))
+    
+    #  labels for weak boundary genes
+    for pos, gene_list in position_gene_map_weak.items():
+        if len(gene_list) == 1:
+            # Single gene at this position
+            gene, y_pos = gene_list[0]
+            texts.append(plt.text(
+                pos, y_pos, gene,
+                fontsize=9, ha='center', va='bottom',
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='orange', pad=1),
+                color='darkred'
+            ))
+        else:
+            # Multiple genes at this position - create a stacked label
+            gene_names = [g for g, _ in gene_list]
+            y_pos = max([y for _, y in gene_list])
+            
+            # Join genes with newlines for stacking
+            stacked_label = '\n'.join(gene_names)
+            
+            texts.append(plt.text(
+                pos, y_pos, stacked_label,
+                fontsize=8, ha='center', va='bottom',
+                bbox=dict(facecolor='white', alpha=0.7, edgecolor='orange', pad=1),
+                color='darkred',
+                linespacing=0.8
+            ))
+    
+    adjust_text(
+        texts,
+        arrowprops=dict(arrowstyle='->', color='gray', lw=0.8),
+        expand_points=(1.5, 1.5),
+        force_points=(0.5, 0.5),
+        force_text=(0.5, 0.5),
+        force_objects=(0.5, 0.5),
+        lim=500
+    )
+    
+    plt.title(f"Insulation Scores and TAD Boundaries for Chromosome {chromosome_name}")
+    plt.xlabel("Chromosome Position (Mb)")
+    plt.ylabel("Insulation Score")
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.tight_layout()
+    
+    plt.savefig(f'GO_results_TAD/insulation_score_with_boundaries_{chromosome_name}.pdf', dpi=300)
+    plt.show()
+
+def plot_insulation_scores_with_gene_markers(chrom_df, strong_boundaries, weak_boundaries, chromosome_name):
+    plt.figure(figsize=(14, 8))
+    
+    # Sort by genomic position
+    chrom_df = chrom_df.sort_values('Gene1_Start').reset_index(drop=True)
+    
+    # Convert positions to Mb for plotting
+    x_positions = chrom_df['Gene1_Start'] / 1_000_000
+    
+    # Plot insulation scores
+    plt.plot(x_positions, chrom_df['Gene1_Insulation_Score'], 
+             label='Gene1 Insulation Score', color='blue')
+    plt.plot(x_positions, chrom_df['Gene2_Insulation_Score'], 
+             label='Gene2 Insulation Score', color='green')
+    
+    # Get positions for boundary genes
+    strong_mask = chrom_df['Gene1_clean'].isin(strong_boundaries)
+    weak_mask = chrom_df['Gene1_clean'].isin(weak_boundaries)
+    
+    # Plot boundary points
+    plt.scatter(
+        chrom_df.loc[strong_mask, 'Gene1_Start'] / 1_000_000,
+        chrom_df.loc[strong_mask, 'Gene1_Insulation_Score'],
+        color='red', label='Strong Boundaries', zorder=5, s=50
+    )
+    
+    plt.scatter(
+        chrom_df.loc[weak_mask, 'Gene1_Start'] / 1_000_000,
+        chrom_df.loc[weak_mask, 'Gene1_Insulation_Score'],
+        color='orange', label='Weak Boundaries', zorder=5, s=50
+    )
+    
+    # Add small markers for all genes
+    for idx, row in chrom_df.iterrows():
+        gene_pos = row['Gene1_Start'] / 1_000_000
+        gene_name = row['Gene1_clean']
+        y_pos = row['Gene1_Insulation_Score']
+        
+        # Add a small vertical line for each gene
+        plt.axvline(x=gene_pos, color='gray', linestyle=':', alpha=0.3, linewidth=0.5)
+        
+        # Only label strong and weak boundary genes to avoid overcrowding
+        if gene_name in strong_boundaries:
+            plt.text(gene_pos, y_pos + 0.1, gene_name, 
+                     fontsize=8, ha='center', va='bottom', 
+                     bbox=dict(facecolor='white', alpha=0.7, edgecolor='red', pad=1))
+        elif gene_name in weak_boundaries:
+            plt.text(gene_pos, y_pos - 0.1, gene_name, 
+                     fontsize=8, ha='center', va='top', 
+                     bbox=dict(facecolor='white', alpha=0.7, edgecolor='orange', pad=1))
+    
+    plt.title(f"Insulation Scores and TAD Boundaries for Chromosome {chromosome_name}")
+    plt.xlabel("Chromosome Position (Mb)")
+    plt.ylabel("Insulation Score")
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.tight_layout()
+    
+    plt.savefig(f'GO_results_TAD/insulation_score_with_gene_markers_{chromosome_name}.pdf', dpi=300)
+    plt.show()
+
+def plot_all_genes(chrom_df, chromosome_name):
+    plt.figure(figsize=(14, 8))
+    
+    chrom_df = chrom_df.sort_values('Gene1_Start').reset_index(drop=True)
+    x_positions = chrom_df['Gene1_Start'] / 1_000_000
+    
+    plt.plot(x_positions, chrom_df['Gene1_Insulation_Score'], 
+             label='Gene1 Insulation Score', color='blue')
+    plt.plot(x_positions, chrom_df['Gene2_Insulation_Score'], 
+             label='Gene2 Insulation Score', color='green')
+ 
+    for idx, row in chrom_df.iterrows():
+        gene_pos = row['Gene1_Start'] / 1_000_000
+        gene_name = row['Gene1_clean']
+
+        y_offset = 0.2 if idx % 2 == 0 else -0.2
+        plt.text(gene_pos, y_offset, gene_name, 
+                 rotation=45, ha='right', fontsize=6)
+    
+    plt.title(f"All Genes and Insulation Scores for Chromosome {chromosome_name}")
+    plt.xlabel("Chromosome Position (Mb)")
+    plt.ylabel("Insulation Score")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    
+    plt.savefig(f'GO_results_TAD/all_genes_{chromosome_name}.pdf', dpi=300)
+    plt.show()
+
 if __name__ == "__main__":
     csv_file = '/Users/beyzakaya/Desktop/temporalHiC/mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv'
 
@@ -333,6 +622,17 @@ if __name__ == "__main__":
     #for chrom in df['Gene1_Chromosome'].unique():
     #    chrom_df = df[df['Gene1_Chromosome'] == chrom]
     #    plot_insulation_scores_with_boundaries(chrom_df, strong_boundaries, weak_boundaries, chrom)
+    #    plot_insulation_scores_with_boundaries_and_gene_positions(chrom_df, strong_boundaries, weak_boundaries, chrom)
+
+    for chromosome in df['Gene1_Chromosome'].unique():
+        chrom_df = df[df['Gene1_Chromosome'] == chromosome].sort_values('Gene1_Start').reset_index(drop=True)
+        if not chrom_df.empty:
+            print(f"Processing chromosome {chromosome} with {len(chrom_df)} genes")
+            
+            #plot_insulation_scores_with_gene_markers(
+            #    chrom_df, strong_boundaries, weak_boundaries, chromosome
+            #)
+            #plot_all_genes(chrom_df, chromosome)
     
     #for chrom in df['Gene1_Chromosome'].unique():
     #    chrom_df = df[df['Gene1_Chromosome'] == chrom]
