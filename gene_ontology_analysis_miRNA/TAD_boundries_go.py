@@ -513,23 +513,21 @@ def plot_insulation_scores_with_boundaries_and_gene_positions(chrom_df, strong_b
 def plot_insulation_scores_with_gene_markers(chrom_df, strong_boundaries, weak_boundaries, chromosome_name):
     plt.figure(figsize=(14, 8))
     
-    # Sort by genomic position
+    # sort genes by their chromsomomal start
     chrom_df = chrom_df.sort_values('Gene1_Start').reset_index(drop=True)
     
-    # Convert positions to Mb for plotting
+    # positions to 1mb resolution for HiC positions
     x_positions = chrom_df['Gene1_Start'] / 1_000_000
     
-    # Plot insulation scores
     plt.plot(x_positions, chrom_df['Gene1_Insulation_Score'], 
              label='Gene1 Insulation Score', color='blue')
     plt.plot(x_positions, chrom_df['Gene2_Insulation_Score'], 
              label='Gene2 Insulation Score', color='green')
-    
-    # Get positions for boundary genes
+    # boundary genes
     strong_mask = chrom_df['Gene1_clean'].isin(strong_boundaries)
     weak_mask = chrom_df['Gene1_clean'].isin(weak_boundaries)
     
-    # Plot boundary points
+    # boundary points
     plt.scatter(
         chrom_df.loc[strong_mask, 'Gene1_Start'] / 1_000_000,
         chrom_df.loc[strong_mask, 'Gene1_Insulation_Score'],
@@ -542,13 +540,11 @@ def plot_insulation_scores_with_gene_markers(chrom_df, strong_boundaries, weak_b
         color='orange', label='Weak Boundaries', zorder=5, s=50
     )
     
-    # Add small markers for all genes
     for idx, row in chrom_df.iterrows():
         gene_pos = row['Gene1_Start'] / 1_000_000
         gene_name = row['Gene1_clean']
         y_pos = row['Gene1_Insulation_Score']
         
-        # Add a small vertical line for each gene
         plt.axvline(x=gene_pos, color='gray', linestyle=':', alpha=0.3, linewidth=0.5)
         
         # Only label strong and weak boundary genes to avoid overcrowding
@@ -629,9 +625,9 @@ if __name__ == "__main__":
         if not chrom_df.empty:
             print(f"Processing chromosome {chromosome} with {len(chrom_df)} genes")
             
-            #plot_insulation_scores_with_gene_markers(
-            #    chrom_df, strong_boundaries, weak_boundaries, chromosome
-            #)
+            plot_insulation_scores_with_gene_markers(
+                chrom_df, strong_boundaries, weak_boundaries, chromosome
+            )
             #plot_all_genes(chrom_df, chromosome)
     
     #for chrom in df['Gene1_Chromosome'].unique():

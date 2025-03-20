@@ -210,4 +210,6 @@ Temporal Analysis:
 Best predicted time point: 26
 Worst predicted time point: 22
 Mean accuracy: 0.6780
-Std of accuracy: 0.1182s
+Std of accuracy: 0.1182
+
+I used in this settings lr as torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)

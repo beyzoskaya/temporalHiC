@@ -135,20 +135,14 @@ def train_stgcn(dataset,val_ratio=0.2):
 
     #model = STGCNChebGraphConvProjected(args, args.blocks, args.n_vertex)
     gene_connections = compute_gene_connections(dataset)
-    number_of_connections = compute_number_of_connections(dataset)
+    #number_of_connections = compute_number_of_connections(dataset)
 
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim_smoother, args.n_vertex, number_of_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim_smoother, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0008, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
-    )
-    scheduler_cosine_annealing = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
-    optimizer, 
-    T_0=10,  
-    T_mult=2,  
-    eta_min=1e-6 
     )
 
     criterion = nn.MSELoss()
@@ -159,7 +153,8 @@ def train_stgcn(dataset,val_ratio=0.2):
     print("Max Correlation:", gene_correlations.max().item())
     print("Mean Correlation:", gene_correlations.mean().item())
 
-    num_epochs = 60
+    #num_epochs = 60
+    num_epochs = 80
     best_val_loss = float('inf')
     patience = 20
     patience_counter = 0

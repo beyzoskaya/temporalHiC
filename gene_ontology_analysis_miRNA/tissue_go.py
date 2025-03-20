@@ -121,7 +121,7 @@ def plot_tissue_specific_heatmap(results, tissue_column='Term'):
         tissue_data = results[['Term', 'P-value', 'Adjusted p-value', 'Z-score', 'Combined score']].sort_values(by='P-value')
         tissue_data = tissue_data.set_index(tissue_column)
         
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(20, 16))
         sns.heatmap(tissue_data[['Z-score', 'Combined score']], annot=True, cmap='coolwarm', fmt='.2f', linewidths=0.5)
         plt.title(f"Tissue-Specific Enrichment (Z-score & Combined score)")
         plt.ylabel('Tissue')
