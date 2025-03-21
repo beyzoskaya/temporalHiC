@@ -137,7 +137,7 @@ def train_stgcn(dataset,val_ratio=0.2):
     gene_connections = compute_gene_connections(dataset)
     #number_of_connections = compute_number_of_connections(dataset)
 
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim_smoother, args.n_vertex, gene_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_512dim_smoother, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0008, weight_decay=1e-4)
@@ -442,7 +442,7 @@ def train_stgcn_check_overfitting(dataset, val_ratio=0.2):
             if patience_counter >= patience:
                 print("Early stopping triggered.")
                 break
-
+                    
     checkpoint = torch.load(f'{save_dir}/best_model.pth', weights_only=True)
     model.load_state_dict(checkpoint['model_state_dict'])
     
@@ -1068,6 +1068,14 @@ class Args_miRNA:
             [48, 32, 1]      
         ]
 
+        self.blocks_three_st_64_dim = [
+            [64, 64, 64],    
+            [64, 48, 48], 
+            [48, 32, 32],
+            [32, 48, 48],    
+            [48, 32, 1]      
+        ]
+
         self.blocks_temporal_node2vec = [
             [128, 128, 128],    
             [128, 64, 64], 
@@ -1106,6 +1114,15 @@ class Args_miRNA:
             [224, 128, 1]
         ]
 
+        self.blocks_temporal_node2vec_with_three_st_blocks_512dim_smoother = [
+            [512, 512, 512],
+            [512, 448, 448],
+            [448, 384, 384],
+            [384, 448, 448],
+            [448, 256, 1]
+        ]
+
+
 
         self.blocks_temporal_node2vec_with_four_st_blocks = [
             [128, 128, 128],    # Initial block
@@ -1124,7 +1141,7 @@ class Args_miRNA:
 if __name__ == "__main__":
     dataset = TemporalGraphDatasetMirna(
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
-        embedding_dim=256,
+        embedding_dim=512,
         #seq_len=6,
         seq_len=10,
         pred_len=1
