@@ -27,8 +27,9 @@ from torch.utils.data import DataLoader, TensorDataset
 import random
 
 # Temporal Node2Vec doesn't change the dimensional aspect of the model but change the creation of the embeddings in terms of capturing relations
+# I changed the walk_length=25 num_walks=75 (this is the best version one lately)
 class TemporalNode2Vec:
-    def __init__(self, dimensions=512, walk_length=25, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
+    def __init__(self, dimensions=256, walk_length=30, num_walks=90, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
         self.dimensions = dimensions
         print(f"Embedding dimension in TemporalNode2Vec: {self.dimensions}")
         self.walk_length = walk_length
@@ -480,8 +481,8 @@ class TemporalGraphDatasetMirna:
         
         temporal_node2vec = TemporalNode2Vec(
             dimensions=self.embedding_dim,
-            walk_length=25,
-            num_walks=75,
+            walk_length=30,
+            num_walks=90,
             p=1.0,
             q=1.0,
             workers=1,

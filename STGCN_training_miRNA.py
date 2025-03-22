@@ -137,11 +137,11 @@ def train_stgcn(dataset,val_ratio=0.2):
     gene_connections = compute_gene_connections(dataset)
     #number_of_connections = compute_number_of_connections(dataset)
 
-    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_512dim_smoother, args.n_vertex, gene_connections)
+    model = STGCNChebGraphConvProjectedGeneConnectedMultiHeadAttentionLSTMmirna(args, args.blocks_temporal_node2vec_with_three_st_blocks_256dim_smoother, args.n_vertex, gene_connections)
     model = model.float() # convert model to float otherwise I am getting type error
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0008, weight_decay=1e-4)
-    #optimizer = torch.optim.Adam(model.parameters(), lr=0.0008, weight_decay=1e-5)
+    #optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
     )
@@ -1141,7 +1141,7 @@ class Args_miRNA:
 if __name__ == "__main__":
     dataset = TemporalGraphDatasetMirna(
         csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv',
-        embedding_dim=512,
+        embedding_dim=256,
         #seq_len=6,
         seq_len=10,
         pred_len=1
