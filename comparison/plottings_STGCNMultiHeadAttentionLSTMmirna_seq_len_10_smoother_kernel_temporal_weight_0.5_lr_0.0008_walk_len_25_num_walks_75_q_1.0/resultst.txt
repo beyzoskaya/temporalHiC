@@ -1,0 +1,213 @@
+Model Performance Summary:
+
+Overall Metrics:
+MSE: 0.0399
+RMSE: 0.1998
+MAE: 0.1583
+R2_Score: 0.3178
+Pearson_Correlation: 0.5813
+
+Gene Performance:
+Mean Gene Correlation: 0.5446
+Mean Spearman Correlation: 0.5104
+Best Performing Genes Pearson: Cplx2, Gmpr, Wdr37, Amph, Sox4
+Best Performing Genes Spearman: Cplx2, Gmpr, Amph, Wdr37, Sox4
+
+Temporal Performance:
+Time-lagged Correlation: 0.5496
+DTW Distance: 3.6797
+Direction Accuracy: 0.6409
+Change Magnitude Ratio: 0.7053
+
+Gene Analysis Summary:
+
+Top 5 Most Connected Genes:
+1700025G04Rik: 27 connections, correlation: 0.3887
+STUM: 27 connections, correlation: 0.3563
+Adora1: 27 connections, correlation: 0.3664
+Arhgef4: 27 connections, correlation: 0.3405
+Macir: 27 connections, correlation: 0.3627
+
+Top 5 Most Variable Genes:
+Dap: range 19590.0000, correlation: 0.5090
+Pes1: range 15068.0000, correlation: 0.7538
+Abra: range 12706.5000, correlation: 0.6452
+Crybg1: range 10033.0000, correlation: 0.7045
+Hbq1a: range 9130.0000, correlation: 0.7461
+
+Top 5 Best Predicted Genes:
+Cplx2: correlation 0.9181, connections: 6
+Gmpr: correlation 0.9128, connections: 6
+Wdr37: correlation 0.9082, connections: 6
+Amph: correlation 0.9036, connections: 6
+Sox4: correlation 0.9019, connections: 6
+
+Correlation values for all genes:
+Cplx2: correlation 0.9181, connections: 6
+Gmpr: correlation 0.9128, connections: 6
+Wdr37: correlation 0.9082, connections: 6
+Amph: correlation 0.9036, connections: 6
+Sox4: correlation 0.9019, connections: 6
+Abt1: correlation 0.8778, connections: 6
+H4c2: correlation 0.8777, connections: 6
+Nlrc3: correlation 0.7902, connections: 3
+Zfp800: correlation 0.7874, connections: 5
+Atp13a3: correlation 0.7873, connections: 3
+Zfp467: correlation 0.7783, connections: 5
+Zbtb20: correlation 0.7762, connections: 3
+Bcl6: correlation 0.7733, connections: 3
+Sftpb: correlation 0.7714, connections: 5
+Peg10: correlation 0.7691, connections: 5
+Tsc22d2: correlation 0.7691, connections: 1
+Gng12: correlation 0.7663, connections: 5
+Nlgn1: correlation 0.7639, connections: 1
+Nxph1: correlation 0.7613, connections: 5
+Trim7: correlation 0.7539, connections: 10
+Pes1: correlation 0.7538, connections: 10
+Ebf1: correlation 0.7538, connections: 10
+Gabra1: correlation 0.7493, connections: 10
+Ewsr1: correlation 0.7476, connections: 10
+Aff4: correlation 0.7472, connections: 10
+Ccdc88a: correlation 0.7469, connections: 10
+Hbq1a: correlation 0.7461, connections: 10
+Ppp2ca: correlation 0.7459, connections: 10
+Itk: correlation 0.7398, connections: 10
+Hnrnph1: correlation 0.7336, connections: 10
+Plagl1: correlation 0.7192, connections: 4
+Jcad: correlation 0.7177, connections: 3
+Lin28b: correlation 0.7075, connections: 4
+Crybg1: correlation 0.7045, connections: 4
+Cdk19: correlation 0.6986, connections: 4
+MYB: correlation 0.6975, connections: 4
+Map3k2: correlation 0.6887, connections: 3
+Kctd16: correlation 0.6806, connections: 3
+Pcdhb22: correlation 0.6789, connections: 3
+Acp1: correlation 0.6711, connections: 5
+CDR1: correlation 0.6690, connections: 2
+Gm16387: correlation 0.6641, connections: 10
+Zfand5: correlation 0.6601, connections: 1
+Pfn4: correlation 0.6594, connections: 5
+LRATD1: correlation 0.6575, connections: 5
+Flrt1: correlation 0.6513, connections: 1
+Ywhaq: correlation 0.6484, connections: 5
+Ttc33: correlation 0.6464, connections: 4
+Abra: correlation 0.6452, connections: 4
+Slc8a2: correlation 0.6450, connections: 10
+Dyrk1b: correlation 0.6258, connections: 10
+Slc9a6: correlation 0.6206, connections: 2
+Mzf1: correlation 0.6131, connections: 10
+SLY: correlation 0.6131, connections: 2
+Cdh12: correlation 0.6054, connections: 4
+Zfp607a: correlation 0.6044, connections: 10
+Prx: correlation 0.6038, connections: 10
+Strn3: correlation 0.6018, connections: 5
+Zfp850: correlation 0.5970, connections: 10
+G2e3: correlation 0.5950, connections: 5
+Cdk6: correlation 0.5743, connections: 5
+Rbpj: correlation 0.5705, connections: 5
+Ppif: correlation 0.5628, connections: 3
+Tbc1d1: correlation 0.5553, connections: 5
+Cpeb2: correlation 0.5463, connections: 5
+Pappa: correlation 0.5441, connections: 10
+Plxdc2: correlation 0.5357, connections: 20
+Fam114a1: correlation 0.5291, connections: 5
+3425401B19Rik: correlation 0.5254, connections: 3
+Ube2e3: correlation 0.5231, connections: 20
+Rbm47: correlation 0.5225, connections: 5
+Nsmf: correlation 0.5166, connections: 20
+Uap1l1: correlation 0.5120, connections: 20
+Mrrf: correlation 0.5119, connections: 20
+Celf2: correlation 0.5099, connections: 20
+Dap: correlation 0.5090, connections: 4
+Ier5l: correlation 0.5023, connections: 20
+Ankrd33b: correlation 0.5020, connections: 4
+Cyp7a1: correlation 0.4988, connections: 10
+Proz: correlation 0.4970, connections: 5
+Dolpp1: correlation 0.4967, connections: 20
+Fam171a1: correlation 0.4955, connections: 20
+Nmi: correlation 0.4919, connections: 20
+Slc2a8: correlation 0.4898, connections: 20
+Tmem245: correlation 0.4898, connections: 10
+Fgf21: correlation 0.4889, connections: 10
+Nr6a1: correlation 0.4885, connections: 20
+Odad1: correlation 0.4872, connections: 10
+Kbtbd3: correlation 0.4871, connections: 9
+Thsd1: correlation 0.4846, connections: 5
+Mmp16: correlation 0.4833, connections: 10
+Kcnh7: correlation 0.4830, connections: 20
+Bach2: correlation 0.4827, connections: 10
+Colq: correlation 0.4827, connections: 3
+Tusc3: correlation 0.4808, connections: 5
+Skida1: correlation 0.4797, connections: 20
+CIBAR1: correlation 0.4747, connections: 10
+Ankrd28: correlation 0.4744, connections: 3
+Aptx: correlation 0.4714, connections: 10
+Pakap: correlation 0.4707, connections: 10
+Tmem38b: correlation 0.4705, connections: 10
+Fam163b: correlation 0.4703, connections: 20
+Zfp292: correlation 0.4685, connections: 10
+Wdr12: correlation 0.4682, connections: 27
+Gpm6a: correlation 0.4653, connections: 5
+Fzd7: correlation 0.4612, connections: 27
+Ing2: correlation 0.4605, connections: 5
+Clcn3: correlation 0.4592, connections: 5
+Ccl21d: correlation 0.4571, connections: 10
+Gm16485: correlation 0.4570, connections: 9
+Satb2: correlation 0.4515, connections: 27
+Chn1: correlation 0.4514, connections: 20
+Map3k20: correlation 0.4484, connections: 20
+BLTP3A: correlation 0.4472, connections: 9
+Ikzf2: correlation 0.4455, connections: 27
+Mars2: correlation 0.4369, connections: 27
+Tbc1d24: correlation 0.4366, connections: 9
+Thnsl1: correlation 0.4322, connections: 20
+Abcg1: correlation 0.4308, connections: 9
+Ptchd4: correlation 0.4308, connections: 9
+Amotl1: correlation 0.4305, connections: 9
+Klf7: correlation 0.4304, connections: 27
+Tpsb2: correlation 0.4271, connections: 9
+Tagap1: correlation 0.4259, connections: 9
+Cyp2b9: correlation 0.4226, connections: 10
+Ly96: correlation 0.4183, connections: 27
+Cyp2b13: correlation 0.4108, connections: 10
+Gnl1: correlation 0.4100, connections: 9
+Ino80d: correlation 0.4003, connections: 27
+Gpr158: correlation 0.3964, connections: 20
+Inhbb: correlation 0.3963, connections: 27
+Tbc1d8: correlation 0.3952, connections: 27
+Scaf8: correlation 0.3944, connections: 9
+Map4k4: correlation 0.3921, connections: 27
+Zfp648: correlation 0.3901, connections: 27
+1700025G04Rik: correlation 0.3887, connections: 27
+Mdm4: correlation 0.3877, connections: 27
+Dusp23: correlation 0.3856, connections: 27
+Gramd2a: correlation 0.3786, connections: 9
+Klhdc8a: correlation 0.3785, connections: 27
+Pfkfb2: correlation 0.3773, connections: 27
+Zbtb41: correlation 0.3751, connections: 27
+Dpp10: correlation 0.3733, connections: 27
+Gm7293: correlation 0.3717, connections: 9
+Adora1: correlation 0.3664, connections: 27
+Phlpp1: correlation 0.3642, connections: 27
+Rnf152: correlation 0.3632, connections: 27
+Plekhb2: correlation 0.3631, connections: 27
+Col5a3: correlation 0.3628, connections: 9
+Macir: correlation 0.3627, connections: 27
+Zfp846: correlation 0.3601, connections: 9
+Fbxl12os: correlation 0.3565, connections: 9
+STUM: correlation 0.3563, connections: 27
+Klhl20: correlation 0.3550, connections: 27
+Hnrnpu: correlation 0.3483, connections: 27
+Ctnnd1: correlation 0.3462, connections: 20
+Arhgef4: correlation 0.3405, connections: 27
+CTNND1: correlation 0.3126, connections: 20
+DYNLT2A2: correlation 0.3005, connections: 9
+Tbp: correlation 0.2948, connections: 9
+Ets1: correlation 0.2226, connections: 9
+Fli1: correlation 0.2119, connections: 9
+
+Temporal Analysis:
+Best predicted time point: 27
+Worst predicted time point: 16
+Mean accuracy: 0.5627
+Std of accuracy: 0.1986
