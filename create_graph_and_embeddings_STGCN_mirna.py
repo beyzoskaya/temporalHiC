@@ -29,7 +29,7 @@ import random
 # Temporal Node2Vec doesn't change the dimensional aspect of the model but change the creation of the embeddings in terms of capturing relations
 # I changed the walk_length=25 num_walks=75 (this is the best version one lately)
 class TemporalNode2Vec:
-    def __init__(self, dimensions=256, walk_length=25, num_walks=75, p=1.0, q=0.5, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
+    def __init__(self, dimensions=256, walk_length=25, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
         self.dimensions = dimensions
         print(f"Embedding dimension in TemporalNode2Vec: {self.dimensions}")
         self.walk_length = walk_length
@@ -40,7 +40,7 @@ class TemporalNode2Vec:
         self.seed = seed
         self.temporal_weight = temporal_weight
         
-    def fit_single_graph(self, graph, window=5, min_count=1, batch_words=4):
+    def fit_single_graph(self, graph, window=7, min_count=1, batch_words=4):
         node2vec = Node2Vec(
             graph,
             dimensions=self.dimensions,
@@ -55,7 +55,7 @@ class TemporalNode2Vec:
         model = node2vec.fit(window=window, min_count=min_count, batch_words=batch_words)
         return model
     
-    def temporal_fit(self, temporal_graphs, time_points, node_map, window=5, min_count=1, batch_words=4):
+    def temporal_fit(self, temporal_graphs, time_points, node_map, window=7, min_count=1, batch_words=4):
 
         initial_embeddings = {}
         models = {}
@@ -339,7 +339,7 @@ class TemporalGraphDatasetMirna:
                 dimensions=self.embedding_dim,
                 walk_length=25,
                 num_walks=75,
-                p=2.0,
+                p=1.0,
                 q=1.0,
                 workers=1,
                 seed=42
@@ -484,7 +484,7 @@ class TemporalGraphDatasetMirna:
             walk_length=25,
             num_walks=75,
             p=1.0,
-            q=0.5,
+            q=1.0,
             workers=1,
             seed=42,
             temporal_weight=0.5  
@@ -494,7 +494,8 @@ class TemporalGraphDatasetMirna:
             temporal_graphs=temporal_graphs,
             time_points=self.time_points,
             node_map=self.node_map,
-            window=5,
+            #window=5,
+            window=7,
             min_count=1,
             batch_words=4
         )
