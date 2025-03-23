@@ -40,7 +40,7 @@ class TemporalNode2Vec:
         self.seed = seed
         self.temporal_weight = temporal_weight
         
-    def fit_single_graph(self, graph, window=7, min_count=1, batch_words=4):
+    def fit_single_graph(self, graph, window=10, min_count=1, batch_words=4):
         node2vec = Node2Vec(
             graph,
             dimensions=self.dimensions,
@@ -55,7 +55,7 @@ class TemporalNode2Vec:
         model = node2vec.fit(window=window, min_count=min_count, batch_words=batch_words)
         return model
     
-    def temporal_fit(self, temporal_graphs, time_points, node_map, window=7, min_count=1, batch_words=4):
+    def temporal_fit(self, temporal_graphs, time_points, node_map, window=10, min_count=1, batch_words=4):
 
         initial_embeddings = {}
         models = {}
@@ -495,7 +495,7 @@ class TemporalGraphDatasetMirna:
             time_points=self.time_points,
             node_map=self.node_map,
             #window=5,
-            window=7,
+            window=10,
             min_count=1,
             batch_words=4
         )
