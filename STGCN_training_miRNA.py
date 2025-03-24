@@ -141,7 +141,7 @@ def train_stgcn(dataset,val_ratio=0.2):
     model = model.float() # convert model to float otherwise I am getting type error
 
     #optimizer = torch.optim.Adam(model.parameters(), lr=0.0008, weight_decay=1e-4)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0009, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
     )
