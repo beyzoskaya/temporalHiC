@@ -40,7 +40,7 @@ class TemporalNode2Vec:
         self.seed = seed
         self.temporal_weight = temporal_weight
         
-    def fit_single_graph(self, graph, window=3, min_count=1, batch_words=4):
+    def fit_single_graph(self, graph, window=5, min_count=1, batch_words=4):
         node2vec = Node2Vec(
             graph,
             dimensions=self.dimensions,
@@ -55,7 +55,7 @@ class TemporalNode2Vec:
         model = node2vec.fit(window=window, min_count=min_count, batch_words=batch_words)
         return model
     
-    def temporal_fit(self, temporal_graphs, time_points, node_map, window=3, min_count=1, batch_words=4):
+    def temporal_fit(self, temporal_graphs, time_points, node_map, window=5, min_count=1, batch_words=4):
 
         initial_embeddings = {}
         models = {}
@@ -406,7 +406,8 @@ class TemporalGraphDatasetMirna:
         return temporal_features, temporal_edge_indices, temporal_edge_attrs
     
     def create_temporal_node_features_with_temporal_node2vec(self, debug_mode=True):
-        clusters, _ = analyze_expression_levels_gmm(self)
+        #clusters, _ = analyze_expression_levels_gmm(self)
+        clusters, _ = analyze_expression_levels_kmeans(self)
         gene_clusters = {}
         for cluster_name, genes in clusters.items():
             for gene in genes:
@@ -467,7 +468,7 @@ class TemporalGraphDatasetMirna:
                         compartment_sim * 0.1 +
                         tad_sim * 0.1 +
                         ins_sim * 0.1 +
-                        expr_sim * 0.4) 
+                        expr_sim * 0.4) * cluster_sim
                 
                 G.add_edge(gene1, gene2, weight=weight, time=t)
                 
@@ -494,8 +495,7 @@ class TemporalGraphDatasetMirna:
             temporal_graphs=temporal_graphs,
             time_points=self.time_points,
             node_map=self.node_map,
-            #window=5,
-            window=3,
+            window=5,
             min_count=1,
             batch_words=4
         )

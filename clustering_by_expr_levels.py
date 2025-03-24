@@ -115,7 +115,7 @@ def analyze_expression_levels_kmeans(dataset, n_clusters=3):
     plt.ylabel('Number of Genes')
     plt.title('Distribution of Gene Expression Levels with KMeans Clusters')
     plt.legend()
-    plt.savefig('plottings_STGCN/expression_clusters_kmeans.png')
+    plt.savefig('plottings_STGCN_clustered/expression_clusters_kmeans.png')
     plt.close()
 
     return clusters, gene_expressions
