@@ -29,7 +29,7 @@ import random
 # Temporal Node2Vec doesn't change the dimensional aspect of the model but change the creation of the embeddings in terms of capturing relations
 # I changed the walk_length=25 num_walks=75 (this is the best version one lately)
 class TemporalNode2Vec:
-    def __init__(self, dimensions=256, walk_length=25, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
+    def __init__(self, dimensions=256, walk_length=25, num_walks=75, p=1.5, q=1.5, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
         self.dimensions = dimensions
         print(f"Embedding dimension in TemporalNode2Vec: {self.dimensions}")
         self.walk_length = walk_length
@@ -468,7 +468,7 @@ class TemporalGraphDatasetMirna:
                         compartment_sim * 0.1 +
                         tad_sim * 0.1 +
                         ins_sim * 0.1 +
-                        expr_sim * 0.4) * cluster_sim
+                        expr_sim * 0.4) 
                 
                 G.add_edge(gene1, gene2, weight=weight, time=t)
                 
@@ -484,8 +484,8 @@ class TemporalGraphDatasetMirna:
             dimensions=self.embedding_dim,
             walk_length=25,
             num_walks=75,
-            p=1.0,
-            q=1.0,
+            p=1.5,
+            q=1.5,
             workers=1,
             seed=42,
             temporal_weight=0.5  
