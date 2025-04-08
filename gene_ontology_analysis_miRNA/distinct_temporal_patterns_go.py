@@ -75,6 +75,9 @@ def identify_temporal_clusters(expression_values, n_clusters=3):
     for i in range(n_clusters):
         avg_slope = np.mean([slopes[genes.index(g)] for g in clusters[i]])
         print(f"Cluster {i} ({cluster_types[i]}) - Average slope: {avg_slope}")
+        print(f"Genes in Cluster {i} ({cluster_types[i]}):")
+        for gene in clusters[i]:
+            print(f" - {gene}")
 
     return clusters, cluster_types
 
@@ -176,6 +179,7 @@ if __name__ == "__main__":
     df = df.loc[:, ~df.columns.str.contains('Time_154.0', case=False)]
     print(f"Time points for analyzes: {time_points}")
     expression_values = extract_expression_values(df, time_points)
+    #clusters, cluster_types = identify_temporal_clusters(expression_values)
 
     run_temporal_clustering_and_go_analysis(csv_file, num_clusters=3, expression_values=expression_values)
 
