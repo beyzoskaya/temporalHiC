@@ -620,14 +620,14 @@ if __name__ == "__main__":
     #    plot_insulation_scores_with_boundaries(chrom_df, strong_boundaries, weak_boundaries, chrom)
     #    plot_insulation_scores_with_boundaries_and_gene_positions(chrom_df, strong_boundaries, weak_boundaries, chrom)
 
-    for chromosome in df['Gene1_Chromosome'].unique():
-        chrom_df = df[df['Gene1_Chromosome'] == chromosome].sort_values('Gene1_Start').reset_index(drop=True)
-        if not chrom_df.empty:
-            print(f"Processing chromosome {chromosome} with {len(chrom_df)} genes")
+    #for chromosome in df['Gene1_Chromosome'].unique():
+    #    chrom_df = df[df['Gene1_Chromosome'] == chromosome].sort_values('Gene1_Start').reset_index(drop=True)
+    #    if not chrom_df.empty:
+    #        print(f"Processing chromosome {chromosome} with {len(chrom_df)} genes")
             
-            plot_insulation_scores_with_gene_markers(
-                chrom_df, strong_boundaries, weak_boundaries, chromosome
-            )
+    #        plot_insulation_scores_with_gene_markers(
+    #            chrom_df, strong_boundaries, weak_boundaries, chromosome
+    #        )
             #plot_all_genes(chrom_df, chromosome)
     
     #for chrom in df['Gene1_Chromosome'].unique():
