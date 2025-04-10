@@ -7,6 +7,19 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from scipy.stats import pearsonr, spearmanr
 import matplotlib.pyplot as plt
+import random
+
+def set_seed(seed=42):
+    random.seed(seed)  
+    np.random.seed(seed)  
+    torch.manual_seed(seed) 
+    torch.cuda.manual_seed(seed)  
+    torch.cuda.manual_seed_all(seed) 
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(42) 
 
 data = pd.read_csv('/Users/beyzakaya/Desktop/temporalHiC/mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest_without_biological_features.csv')
 columns_to_drop = [col for col in data.columns if 'Time_154.0' in col]
@@ -49,7 +62,7 @@ class GeneExpressionDataset(Dataset):
 
 seq_len = 10  
 pred_len = 1 
-batch_size = 8
+batch_size = 16
 
 train_dataset = GeneExpressionDataset(normalized_expression_data, train_indices, seq_len, pred_len)
 val_dataset = GeneExpressionDataset(normalized_expression_data, val_indices, seq_len, pred_len)
@@ -60,7 +73,7 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size)
 class BasicLSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
         super(BasicLSTM, self).__init__()
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers=1, batch_first=True)
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers=6, batch_first=True)
         self.fc = nn.Linear(hidden_dim, output_dim)
 
     def forward(self, x):
@@ -71,14 +84,14 @@ class BasicLSTM(nn.Module):
 
 input_dim = expression_data.shape[1]  # Number of genes/features
 print(f"Input dim: {input_dim}")
-hidden_dim = 64
+hidden_dim = 128
 output_dim = input_dim
 
 model = BasicLSTM(input_dim, hidden_dim, output_dim)
 
 # Loss function and optimizer
 criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.0001)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Train the model
 for epoch in range(50): 
@@ -101,7 +114,7 @@ spearman_correlations = []
 predictions = []
 targets = []
 with torch.no_grad():
-    for batch in train_loader:
+    for batch in val_loader:
         inputs, labels = batch
         outputs = model(inputs)
         
@@ -114,7 +127,7 @@ with torch.no_grad():
             corr, _ = pearsonr(gene_pred, gene_label)
             correlations.append(corr)
             
-            spearman_corr, _ = pearsonr(gene_pred, gene_label)  
+            spearman_corr, _ = spearmanr(gene_pred, gene_label)
             spearman_correlations.append(spearman_corr)
         
         predictions.extend(outputs.cpu().numpy().flatten())
@@ -166,13 +179,11 @@ print(f"Mean Pearson Correlation: {mean_pearson_corr}")
 print(f"Mean Spearman Correlation: {mean_spearman_corr}")
 """
 Overall Metrics:
-Overall Metrics:
-MSE: 0.9793407917022705
-RMSE: 0.9896165132522583
-MAE: 0.6797861456871033
-R2_Score: 0.07612584036767067
-Pearson_Correlation: 0.2989910378396355
-Mean Pearson Correlation: 0.29885889755569306
-Mean Spearman Correlation: 0.29885889755569306
+MSE: 1.4389727115631104
+RMSE: 1.1995718479156494
+MAE: 0.844550371170044
+R2_Score: -0.03318736289583213
+Pearson_Correlation: 0.10439464360400495
+Mean Pearson Correlation: 0.43225748445504913
+Mean Spearman Correlation: 0.2607041529102187
 """
-
