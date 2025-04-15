@@ -28,6 +28,7 @@ from STGCN_losses import temporal_loss_for_projected_model, enhanced_temporal_lo
 from evaluation import *
 from clustering_by_expr_levels import analyze_expression_levels_kmeans, analyze_expression_levels,analyze_expression_levels_research
 from categorize_genes.ppi_calculation import get_mouse_ppi_data, compare_ppi_with_hic, get_mgi_info, analyze_and_plot_ppi, analyze_ppi_with_aliases
+from sklearn.manifold import TSNE
 
 
 def set_seed(seed=42):
@@ -1146,6 +1147,32 @@ if __name__ == "__main__":
         seq_len=10,
         pred_len=1
     )
+
+    genes_of_interest = ['MYB', 'Zfp800', 'Nr6a1', 'Hnrnpu']
+
+    embeddings = []
+    for t in dataset.time_points:
+        emb = dataset.node_features[t].numpy()
+        idxs = [dataset.node_map[g] for g in genes_of_interest]
+        embeddings.append(emb[idxs])
+    embeddings = np.stack(embeddings)
+    embeddings_flat  = embeddings.reshape(-1, embeddings.shape[-1])
+
+    tsne = TSNE(n_components=2, random_state=42)
+    embeddings_2d = tsne.fit_transform(embeddings_flat)
+    embeddings_2d = embeddings_2d.reshape(len(dataset.time_points), len(genes_of_interest), 2)
+    plt.figure(figsize=(10,8))
+    for i, gene in enumerate(genes_of_interest):
+        plt.plot(embeddings_2d[:,i,0], embeddings_2d[:, i,1], marker='o', label=gene)
+        for t_idx, t in enumerate(dataset.time_points):
+            plt.text(embeddings_2d[t_idx, i,0], embeddings_2d[t_idx, i, 1], f"{t}", fontsize=8)
+    plt.title("Temporal Trajectories of Node2Vec Embeddings")
+    plt.xlabel("t-SNE 1")
+    plt.ylabel("t-SNE 2")
+    plt.legend()
+    plt.tight_layout()
+    #plt.show()
+    plt.savefig('plottings_STGCN_clustered/temporal_trajectories_node2vec.png')
 
     #dataset = TemporalGraphDatasetMirnaNoExtraBiological(
     #    csv_file = 'mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest_without_biological_features.csv',
