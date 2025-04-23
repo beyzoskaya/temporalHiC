@@ -451,46 +451,38 @@ def plot_separate_networks(categorized_genes):
         ax.set_frame_on(False)
 
     plt.subplots_adjust(top=0.9, hspace=0.6, wspace=0.4)
-    plt.savefig('mygene_functional_categorization/functional_categories_all_genes_mrna.png')
+    plt.savefig('mygene_functional_categorization/functional_categories_all_genes_mirna.png')
     plt.show()
 
 
 if __name__ == "__main__":
     gene_list = [
-     "Hist1h1b", "VIM", "P-63", "INMT", "ADAMTSL2", "Tnc", "FGF18", "Shisa3", "integrin subunit alpha 8", "H2ac4", 
-     "CD38", "Mmp3", "Lrp2", "ppia", "THTPA", "Pgf", "Gata6", "ABCA3", "Kcnma1", "tfrc", "RAGE", "F13A1", "MCPt4",
-     "FOXF2", "EPHA7", "AGER", "hmbs", "E2F8", "TGFB1", "Ttf1", "Claudin5", "Gucy1a2", "PRIM2", "tbp", "SFTP-D",
-     "N-Cadherin", "Thy1", "Claudin 1", "Igfbp3", "EGFR", "ywhaz", "Hprt1", "ABCD1", "NME3", "MGAT4A", "MMP7", "HPGDS",
-     "ABCG2", "AMACR"
-    ]
+    '1700025G04Rik', '3425401B19Rik', 'STUM', 'Abcg1', 'Abra', 'Abt1', 
+    'Acp1', 'Adora1', 'Aff4', 'Amotl1', 'Amph', 'Ankrd28', 'Ankrd33b', 
+    'Aptx', 'Arhgef4', 'Atp13a3', 'Bach2', 'Bcl6', 'CDR1', 'CTNND1', 
+    'Odad1', 'Ccdc88a', 'Ccl21d', 'Cdh12', 'Cdk19', 'Cdk6', 'Celf2', 
+    'Chn1', 'Clcn3', 'Col5a3', 'Colq', 'Cpeb2', 'Cplx2', 'Crybg1', 
+    'Ctnnd1', 'Cyp2b13', 'Cyp2b9', 'Cyp7a1', 'Macir', 'Dap', 
+    'Dolpp1', 'Dpp10', 'Dusp23', 'Dyrk1b', 'Ebf1', 'Ets1', 'Ewsr1',
+    'Fam114a1', 'Fam163b', 'Fam171a1', 'LRATD1', 'CIBAR1', 'Fbxl12os',
+    'Fgf21', 'Fli1', 'Flrt1', 'Fzd7', 'G2e3', 'Gabra1', 'Gm16387', 'Gm16485',
+    'DYNLT2A2', 'Gm7293', 'Gmpr', 'Gng12', 'Gnl1', 'Gpm6a', 'Gpr158', 'Gramd2a', 
+    'Hbq1a', 'H4c2', 'Hnrnph1', 'Hnrnpu', 'Ier5l', 'Ikzf2', 'Ing2', 'Inhbb', 'Ino80d', 
+    'Itk', 'Jcad', 'Kbtbd3', 'Kcnh7', 'Kctd16', 'Klf7', 'Klhdc8a', 'Klhl20', 'Lin28b', 
+    'Ly96', 'MYB', 'Map3k2', 'Map4k4', 'Mars2', 'Mdm4', 'Mmp16', 'Mrrf', 'Mzf1', 
+    'Nlgn1', 'Nlrc3', 'Nmi', 'Nr6a1', 'Nsmf', 'Nxph1', 'Pakap', 'Pappa', 'Peg10',
+    'Pes1', 'Pfkfb2', 'Pfn4', 'Phlpp1', 'Plekhb2', 'Plxdc2', 'Ppp2ca', 'Proz', 'Prx',
+    'Ptchd4', 'Rbm47', 'Rbpj', 'Rnf152', 'SLY', 'Satb2', 'Scaf8', 'Sftpb', 'Skida1', 
+    'Slc2a8', 'Slc8a2', 'Sox4', 'Strn3', 'Tagap1', 'Tbc1d24', 'Tbc1d8', 'Tbp', 'Thnsl1', 
+    'Thsd1', 'Tmem245', 'Tmem38b', 'Tpsb2', 'Uap1l1', 'Ube2e3', 'Wdr12', 'Zbtb41', 
+    'Zfp467', 'Zfp607a', 'Zfp648', 'Ppif', 'BLTP3A', 'Ttc33', 'Wdr37', 'Ywhaq', 'Trim7', 'Zfp846', 
+    'Zfp292', 'Zbtb20', 'Slc9a6', 'Map3k20', 'Zfp850', 'Plagl1', 'Tbc1d1', 'Tusc3', 'Zfand5', 
+    'Zfp800', 'Pcdhb22', 'Tsc22d2'
+]
 
-    alternative_names = {
-    'integrin subunit alpha 8': ['Lama4', 'Itga8', 'Col4a2', 'Itgav', 'Col3a1'],
-    'AGER': ['Ager'],
-    'N-Cadherin': ['Cdh2', 'Ctnna2', 'Arhgap32', 'Kifap3', 'Ctnnb1'],
-    }
+    #updated_gene_list = update_gene_list_with_alternatives(gene_list, alternative_names)
 
-    alternative_names_overall = {
-    'Hist1h1b': ['H1f5'],
-    'P-63': ['Or5p63'],
-    'Shisa3': ['Shisa3'],  
-    'integrin subunit alpha 8': ['Lama4', 'Itga8', 'Col4a2', 'Itgav', 'Col3a1'],
-    'Hist1h2ab': ['H2ac4'],
-    'MMP-3': ['Mmp16', 'Mmp11', 'Mmp3', 'Mmp13'],
-    'Vegf': ['Angvq2', 'Angvq1', 'Vegfb', 'Vegfd', 'Pgf'],
-    'GATA-6': ['Gata6os', 'Gata6'],
-    'RAGE': ['Mok', 'Ager'],
-    'FOXF2': ['Foxf2'],
-    'TTF-1': ['Ccdc59', 'Ttf1', 'Foxe1', 'Nkx2-1', 'Baz2a'],
-    'GUCY1A2  sGC': ['Gucy1a2'],
-    'N-Cadherin': ['Cdh2', 'Ctnna2', 'Arhgap32', 'Kifap3', 'Ctnnb1'],
-    'Claudin 1': ['Cldn1', 'Cldnd1', 'Cldn34b3', 'Cldn34a', 'Cldn34c2'],
-    'hprt': ['Hma', 'Hprt-ps1', 'Hprt1']
-    }
-
-    updated_gene_list = update_gene_list_with_alternatives(gene_list, alternative_names)
-
-    categorized_genes = categorize_genes_functionally(updated_gene_list)
+    categorized_genes = categorize_genes_functionally(gene_list)
     #visualize_pathway_based_categories(categorized_genes)
     #visualize_functional_categories(categorized_genes)
     #plot_gene_category_heatmap(categorized_genes)

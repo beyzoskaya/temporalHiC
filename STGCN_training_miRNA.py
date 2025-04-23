@@ -147,7 +147,7 @@ def train_stgcn(dataset,val_ratio=0.2):
         optimizer, mode='min', factor=0.5, patience=5, verbose=True
     )
 
-    criterion = nn.MSELoss()
+    #criterion = nn.MSELoss()
 
     gene_correlations = compute_gene_correlations(dataset, model)
     print("Gene Correlations:", gene_correlations)
@@ -203,13 +203,13 @@ def train_stgcn(dataset,val_ratio=0.2):
             # x
             #)
 
-            # loss = miRNA_enhanced_temporal_loss(
-            # output[:, :, -1:, :],
-            # target,
-            # x
-            #)
+            loss = miRNA_enhanced_temporal_loss(
+             output[:, :, -1:, :],
+             target,
+             x
+            )
 
-            loss = criterion(output[:, :, -1:, :], target)
+            #loss = criterion(output[:, :, -1:, :], target)
             if torch.isnan(loss):
                 print("NaN loss detected!")
                 print(f"Output range: [{output.min().item():.4f}, {output.max().item():.4f}]")
@@ -243,10 +243,10 @@ def train_stgcn(dataset,val_ratio=0.2):
                 #print(f"Shape of output in validation: {output.shape}") # --> [1, 32, 5, 52]
                 #print(f"Shape of target in validation: {target.shape}") # --> [32, 1, 52]
                 #target = target[:,:,-1:, :]
-                val_loss = criterion(output[:, :, -1:, :], target)
+                #val_loss = criterion(output[:, :, -1:, :], target)
 
                 #val_loss = enhanced_temporal_loss(output[:, :, -1:, :], target, x)
-                #val_loss = miRNA_enhanced_temporal_loss(output[:, :, -1:, :], target, x)
+                val_loss = miRNA_enhanced_temporal_loss(output[:, :, -1:, :], target, x)
 
                 val_loss_total += val_loss.item()
 
@@ -879,6 +879,72 @@ def plot_gene_predictions_train_val(model, train_sequences, train_labels, val_se
         plt.savefig(f'{save_dir}/gene_predictions_page_{page + 1}.png')
         plt.close()
 
+
+def plot_gene_predictions_train_val_proper_label(
+    model, 
+    train_sequences, 
+    train_labels, 
+    val_sequences, 
+    val_labels, 
+    dataset,
+    save_dir='plottings_STGCN_clustered', 
+    genes_per_page=12
+):
+    os.makedirs(save_dir, exist_ok=True)
+    model.eval()
+    
+    all_sequences = train_sequences + val_sequences
+    all_labels = train_labels + val_labels
+    
+    num_genes = dataset.num_nodes
+    
+    all_predictions = []
+    all_targets = []
+    
+    with torch.no_grad():
+        for seq, label in zip(all_sequences, all_labels):
+            x, target = process_batch(seq, label)
+            output = model(x)
+            output = output[:, :, -1:, :].squeeze().cpu().numpy() 
+            target = target.squeeze().cpu().numpy()  
+            all_predictions.append(output)
+            all_targets.append(target)
+    
+    predictions = np.array(all_predictions)  # [time_points, nodes]
+    targets = np.array(all_targets)          # [time_points, nodes]
+    
+    gene_names = list(dataset.node_map.keys())
+    num_pages = (num_genes + genes_per_page - 1) // genes_per_page
+
+    for page in range(num_pages):
+        plt.figure(figsize=(20, 15))  
+        start_idx = page * genes_per_page
+        end_idx = min((page + 1) * genes_per_page, num_genes)
+        page_genes = gene_names[start_idx:end_idx]
+        
+        for i, gene_name in enumerate(page_genes):
+            gene_idx = start_idx + i
+            rows = (genes_per_page + 1) // 2  
+            plt.subplot(rows, 2, i + 1) 
+            
+            train_time_points = range(len(train_labels))
+            plt.plot(train_time_points, targets[:len(train_labels), gene_idx], label='Train Actual', color='blue', marker='o')
+            plt.plot(train_time_points, predictions[:len(train_labels), gene_idx], label='Train Predicted', color='red', linestyle='--', marker='x')
+     
+            val_time_points = range(len(train_labels), len(train_labels) + len(val_labels))
+            plt.plot(val_time_points, targets[len(train_labels):, gene_idx], label='Val Actual', color='green', marker='o')
+            plt.plot(val_time_points, predictions[len(train_labels):, gene_idx], label='Val Predicted', color='orange', linestyle='--', marker='x')
+            
+            plt.title(f'Gene: {gene_name}')
+            plt.xlabel('Time Points')
+            plt.ylabel('Expression Value')
+            # Move legend to the far left, outside the plot
+            plt.legend(loc='center left', bbox_to_anchor=(-0.3, 0.5), fontsize='small', frameon=False)
+        
+        plt.tight_layout()
+        plt.savefig(f'{save_dir}/gene_predictions_page_{page + 1}.png')
+        plt.close()
+
 def get_predictions_and_targets(model, val_sequences, val_labels):
     """Extract predictions and targets from validation data."""
     model.eval()
@@ -1185,7 +1251,7 @@ if __name__ == "__main__":
     model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn(dataset, val_ratio=0.2)
     #model, val_sequences, val_labels, train_losses, val_losses, train_sequences, train_labels = train_stgcn_check_overfitting(dataset, val_ratio=0.2)
     metrics = evaluate_model_performance(model, val_sequences, val_labels, dataset)
-    plot_gene_predictions_train_val(model, train_sequences, train_labels, val_sequences, val_labels, dataset)
+    plot_gene_predictions_train_val_proper_label(model, train_sequences, train_labels, val_sequences, val_labels, dataset)
 
     print("\nModel Performance Summary:")
     print("\nOverall Metrics:")

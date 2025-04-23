@@ -4,12 +4,12 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 
-df = pd.read_csv('/Users/beyzakaya/Desktop/temporalHiC/mapped/mRNA/enhanced_interactions_synthetic_simple_mRNA.csv')
+df = pd.read_csv('/Users/beyzakaya/Desktop/temporalHiC/mapped/miRNA_expression_mean/standardized_time_columns_meaned_expression_values_get_closest.csv')
 expression_columns = [col for col in df.columns if 'Time' in col]
 
 unique_genes = pd.concat([df['Gene1'], df['Gene2']]).unique()
 unique_genes = [str(gene).upper() for gene in unique_genes]
-#unique_genes = [gene.replace('INTEGRIN SUBUNIT ALPHA 8', 'ITGA8') for gene in unique_genes]
+#unique_genes = [gene.replace('INTEGRIN SUBUNIT ALPHA 8', 'INTEGRIN SUBUNIT') for gene in unique_genes]
 
 expression_matrix = pd.DataFrame(index=unique_genes)
 
@@ -31,16 +31,7 @@ late_time_points = [col for col in expression_columns if float(col.split('_')[-1
 cls = ['Early'] * len(early_time_points) + ['Late'] * len(late_time_points)
 
 gene_list = [
-    "HIST1H1B", "VIM", "P-63", "INMT", "ADAMTSL2", "TNC", "FGF18", "SHISA3", 
-    "INTEGRIN SUBUNIT ALPHA 8", "HIST1H2AB", "CD38", "MMP-3", "LRP2", "PPIA", 
-    "THTPA", "VEGF", "GATA-6", "ABCA3", "KCNMA1", "TFRC", "RAGE", "F13A1", "MCPt4",
-    "FOXF2", "EPHA7", "AGER", "HMBS", "E2F8", "TGFB1", "TTF-1", "CLAUDIN5", "GUCY1A2  SGC", 
-    "PRIM2", "TBP", "SFTP-D", "N-CADHERIN", "THY1", "CLAUDIN 1", "IGFBP3", "EGFR", "YWHAZ", 
-    "HPRT", "ABCD1", "NME3", "MGAT4A", "MMP7", "HPGDS", "ABCG2", "AMACR"
-]
-
-gene_list_mirna = [
-    '1700025G04Rik', '3425401B19Rik', 'STUM', 'Abcg1', 'Abra', 'Abt1', 
+     'STUM',
     'Acp1', 'Adora1', 'Aff4', 'Amotl1', 'Amph', 'Ankrd28', 'Ankrd33b', 
     'Aptx', 'Arhgef4', 'Atp13a3', 'Bach2', 'Bcl6', 'CDR1', 'CTNND1', 
     'Odad1', 'Ccdc88a', 'Ccl21d', 'Cdh12', 'Cdk19', 'Cdk6', 'Celf2', 
@@ -64,6 +55,96 @@ gene_list_mirna = [
 ]
 gene_list = [gene.upper() for gene in gene_list]
 
+def create_additional_gsea_visualizations(gsea, expression_matrix, early_time_points, late_time_points):
+    gsea_results = gsea.res2d
+    leading_genes = gsea_results.loc[0, 'Lead_genes'].split(';')
+    
+    # 1. Time Series Plot for Leading Edge Genes
+    plt.figure(figsize=(15, 6))
+    
+    # Get actual time points once (not duplicated)
+    all_timepoints = early_time_points + late_time_points
+    time_points = [float(col.split('_')[-1]) for col in all_timepoints]
+    
+    for gene in leading_genes:
+        if gene in expression_matrix.index:
+            # Get values for this gene across all time points
+            gene_values = expression_matrix.loc[gene, all_timepoints].values
+            
+            # Ensure gene_values is 1D and matches time_points length
+            if len(gene_values) == len(time_points):
+                plt.plot(time_points, gene_values, marker='o', label=gene)
+            else:
+                print(f"Skipping gene {gene} due to dimension mismatch: time_points({len(time_points)}) vs gene_values({len(gene_values)})")
+    
+    plt.axvline(x=13.0, color='r', linestyle='--', label='Early/Late Boundary')  # Changed from 4.0 to match your early/late boundary
+    plt.xlabel('Time Points')
+    plt.ylabel('Expression Values')
+    plt.title('Expression Trajectories of Leading Edge Genes')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+    plt.savefig('gsea_plottings_mirna/expr_trajectories.png')
+
+    custom_genes = ['MYB', 'CDK19', 'PLAGL1', 'CRYBG1', 'LIN28B', 'PAPPA', 'NLGN1', 'CYP7A1']
+
+    valid_custom_genes = [gene for gene in custom_genes if gene in expression_matrix.index]
+    print(f"Valid genes: {valid_custom_genes}")
+
+
+    # Select expression data for those genes
+    selected_expr = expression_matrix.loc[custom_genes, early_time_points + late_time_points]
+
+    # Transpose to get time points as rows, genes as columns, then correlate genes
+    correlation_matrix = selected_expr.T.corr()
+
+    gene_name_mapping = {
+    'INTEGRIN SUBUNIT ALPHA 8': 'INTEGRIN ALPHA 8',  
+    }
+
+    correlation_matrix = correlation_matrix.rename(index=gene_name_mapping, columns=gene_name_mapping)
+
+    # Plot the heatmap
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", center=0,
+                cbar_kws={"label": "Pearson Correlation"})
+    plt.title("Correlation Matrix for Top 8 Performed Genes")
+    plt.tight_layout()
+    plt.savefig("custom_genes_correlation.png")
+    plt.show()
+    
+    
+    # 3. Correlation Heatmap
+    # high positive correlation means that the gene expressions of these two genes are highly similar. These genes show similar expression patterns across time points
+    # This could indicate that these genes are co-regulated or part of the same biological pathway or process. 
+    # correlation closer to -1 indicates an inverse relationship. That is, when the expression of one gene goes up, the expression of the other gene goes down, and vice versa.
+    plt.figure(figsize=(10, 8))
+    gene_correlations = expression_matrix.loc[leading_genes, all_timepoints].T.corr()
+    sns.heatmap(gene_correlations, 
+                annot=True, 
+                fmt='.2f', 
+                cmap='coolwarm',
+                center=0)
+    plt.title('Correlation Between Leading Edge Genes')
+    plt.tight_layout()
+    plt.savefig('gsea_plottings_mirna/correl_between_edge_genes.png')
+    
+    # 4. Expression Change Plot
+    plt.figure(figsize=(10, 6))
+    early_means = expression_matrix.loc[leading_genes, early_time_points].mean(axis=1)
+    late_means = expression_matrix.loc[leading_genes, late_time_points].mean(axis=1)
+    fold_changes = late_means - early_means
+    
+    sns.barplot(x=leading_genes, y=fold_changes)
+    plt.xticks(rotation=45)
+    plt.axhline(y=0, color='r', linestyle='--')
+    plt.title('Expression Changes (Late - Early)')
+    plt.ylabel('Log2 Expression Change')
+    plt.tight_layout()
+    plt.savefig('gsea_plottings_mirna/expr_changes.png')
+    
+    return plt.gcf()
+
+gsea = None
 try:
     # Gene set enrichment analysis
     gsea = gp.gsea(
@@ -101,6 +182,8 @@ try:
     # leading edge genes refer to the subset of genes that are most responsible for the enrichment
     # leading genes are usually the ones that show the most significant association with the phenotype or condition
     leading_genes = gsea_results.loc[0, 'Lead_genes'].split(';')
+    top_n = 10 
+    leading_genes = leading_genes[:top_n]
     leading_gene_values = pd.DataFrame({
         'Gene': leading_genes,
         'Early_Mean': expression_matrix[early_time_points].loc[leading_genes].mean(axis=1),
@@ -116,7 +199,7 @@ try:
     plt.title('Expression Pattern of Leading Edge Genes')
     
     plt.tight_layout()
-    plt.savefig('gsea_plottings_mirna/expr_patterns.png')
+    plt.savefig('expr_patterns.png')
     plt.show()
     
     print("\nDetailed GSEA Analysis:")
@@ -130,123 +213,15 @@ try:
         late_mean = expression_matrix[late_time_points].loc[gene].mean()
         print(f"{gene}: Early mean = {early_mean:.2f}, Late mean = {late_mean:.2f}")
     
+    create_additional_gsea_visualizations(gsea, expression_matrix, early_time_points, late_time_points)
+    plt.show()
+    
 except Exception as e:
     print(f"Error during GSEA analysis: {str(e)}")
     print("\nShape of expression matrix:", expression_matrix.shape)
     print("Number of class labels:", len(cls))
     print("Sample of expression matrix:")
     print(expression_matrix.head())
-
-def create_additional_gsea_visualizations(gsea, expression_matrix, early_time_points, late_time_points):
-    gsea_results = gsea.res2d
-    leading_genes = gsea_results.loc[0, 'Lead_genes'].split(';')
-
-    # 1. Time Series Plot for Leading Edge Genes
-    plt.figure(figsize=(15, 6))
-    time_points = [float(col.split('_')[-1]) for col in early_time_points + late_time_points]
-    all_timepoints = early_time_points + late_time_points
-    
-    for gene in leading_genes:
-        gene_values = expression_matrix.loc[gene, all_timepoints].values
-        plt.plot(time_points, gene_values, marker='o', label=gene)
-    
-    plt.axvline(x=4.0, color='r', linestyle='--', label='Early/Late Boundary')
-    plt.xlabel('Time Points')
-    plt.ylabel('Expression Values')
-    plt.title('Expression Trajectories of Leading Edge Genes')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-    plt.tight_layout()
-    plt.savefig('gsea_plottings_mirna/expr_trajectories.png')
-
-    print(expression_matrix.index)
-    custom_genes = ['VIM', 'INTEGRIN SUBUNIT ALPHA 8', 'HPRT', 'ADAMTSL2', 'TTF-1', 'INMT', 'CLAUDIN5', 'ABCD1']
-    print(expression_matrix.loc['INTEGRIN SUBUNIT ALPHA 8'])
-
-    valid_custom_genes = [gene for gene in custom_genes if gene in expression_matrix.index]
-    print(f"Valid genes: {valid_custom_genes}")
-
-    selected_expr = expression_matrix.loc[custom_genes, early_time_points + late_time_points]
-
-    correlation_matrix = selected_expr.T.corr()
-
-    gene_name_mapping = {
-    'INTEGRIN SUBUNIT ALPHA 8': 'INTEGRIN8',  
-    }
-
-    correlation_matrix = correlation_matrix.rename(index=gene_name_mapping, columns=gene_name_mapping)
-
-    # Plot the heatmap
-    plt.figure(figsize=(8, 6))
-    ax = sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", center=0,
-                cbar_kws={"label": "Pearson Correlation"})
-
-    # This line controls the y-axis label rotation
-    ax.set_yticklabels(ax.get_yticklabels(), rotation=90)
-
-    # Optionally, if you want to adjust x-axis labels too
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=0)
-
-    plt.title("Correlation Matrix for Top 8 Performed Genes")
-    plt.tight_layout()
-    plt.savefig("custom_genes_correlation.png")
-    plt.show()
-    
-    # 2. Boxplot Comparison
-    plt.figure(figsize=(12, 6))
-    early_data = []
-    late_data = []
-    gene_labels = []
-    
-    for gene in leading_genes:
-        early_values = expression_matrix.loc[gene, early_time_points].values
-        late_values = expression_matrix.loc[gene, late_time_points].values
-        early_data.extend(early_values)
-        late_data.extend(late_values)
-        gene_labels.extend([gene] * len(early_values))
-        gene_labels.extend([gene] * len(late_values))
-    
-    comparison_df = pd.DataFrame({
-        'Expression': early_data + late_data,
-        'Time': ['Early'] * len(early_data) + ['Late'] * len(late_data),
-        'Gene': gene_labels
-    })
-    
-    sns.boxplot(x='Gene', y='Expression', hue='Time', data=comparison_df)
-    plt.xticks(rotation=45)
-    plt.title('Early vs Late Expression Distribution')
-    plt.tight_layout()
-    plt.savefig('gsea_plottings_mirna/early_late_distribution.png')
-    
-    # 3. Correlation Heatmap
-    # high positive correlation means that the gene expressions of these two genes are highly similar. These genes show similar expression patterns across time points
-    # This could indicate that these genes are co-regulated or part of the same biological pathway or process. 
-    # correlation closer to -1 indicates an inverse relationship. That is, when the expression of one gene goes up, the expression of the other gene goes down, and vice versa.
-    plt.figure(figsize=(10, 8))
-    gene_correlations = expression_matrix.loc[leading_genes, all_timepoints].T.corr()
-    sns.heatmap(gene_correlations, 
-                annot=True, 
-                fmt='.2f', 
-                cmap='coolwarm',
-                center=0)
-    plt.title('Correlation Between Leading Edge Genes')
-    plt.tight_layout()
-    plt.savefig('gsea_plottings_mirna/correl_between_edge_genes.png')
-    
-    # 4. Expression Change Plot
-    plt.figure(figsize=(10, 6))
-    early_means = expression_matrix.loc[leading_genes, early_time_points].mean(axis=1)
-    late_means = expression_matrix.loc[leading_genes, late_time_points].mean(axis=1)
-    fold_changes = late_means - early_means
-    
-    sns.barplot(x=leading_genes, y=fold_changes)
-    plt.xticks(rotation=45)
-    plt.axhline(y=0, color='r', linestyle='--')
-    plt.title('Expression Changes (Late - Early)')
-    plt.ylabel('Log2 Expression Change')
-    plt.tight_layout()
-    plt.savefig('gsea_plottings_mirna/expr_changes.png')
-    
-    return plt.gcf()
 
 create_additional_gsea_visualizations(gsea, expression_matrix, early_time_points, late_time_points)
 plt.show()
