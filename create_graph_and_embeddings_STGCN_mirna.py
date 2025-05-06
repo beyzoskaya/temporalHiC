@@ -508,6 +508,10 @@ class TemporalGraphDatasetMirna:
                 expr_value = gene1_expr[0] if len(gene1_expr) > 0 else \
                             (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
         
+        for time_point, graph in temporal_graphs.items():
+            print(f"Plotting graph for time point {time_point}")
+            visualize_enhanced_gene_graph(base_graph=graph, gene_names=self.node_map, time_point=time_point)
+        
         return temporal_features, temporal_edge_indices, temporal_edge_attrs
     
     def create_temporal_node_features_with_temporal_node2vec_original_node2vec(self, debug_mode=True):
@@ -849,3 +853,23 @@ class TemporalGraphDatasetMirna:
         
         return train_sequences, train_labels, val_sequences, val_labels, train_idx, val_idx
         
+def visualize_enhanced_gene_graph(base_graph, gene_names, time_point):
+    plt.figure(figsize=(18,16))
+
+    pos = nx.spring_layout(base_graph, seed=42, k=2)
+
+    node_labels = {i: gene for gene, i in gene_names.items() if i in base_graph.nodes()}
+    nx.draw_networkx_nodes(base_graph, pos, node_size=800, node_color='skyblue', alpha=0.6)
+
+    edge_weights = [base_graph[u][v]['weight'] for u,v in base_graph.edges()]
+    edge_labels = {(u,v): f"{base_graph[u][v]['weight']:.2f}" for u,v in base_graph.edges()}
+
+    nx.draw_networkx_edges(base_graph, pos, width=2.0, alpha=0.6, edge_color=edge_weights, edge_cmap=plt.cm.Blues_r)
+    nx.draw_networkx_labels(base_graph, pos, labels=node_labels, font_size=11, font_weight='bold')
+    nx.draw_networkx_edge_labels(base_graph, pos, edge_labels=edge_labels, font_size=12, font_color='black')
+
+    plt.axis('off')
+    plt.tight_layout()
+    clean_time = str(time_point).replace('.', '_')
+    plt.savefig(f"plottings_STGCN_clustered/graph_time_{clean_time}.png")
+    plt.close()
