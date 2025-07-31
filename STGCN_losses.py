@@ -143,7 +143,8 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
     mse_loss = F.mse_loss(output, target)
     l1_loss = F.l1_loss(output, target)
  
-    input_expressions = input_sequence[:, -1, :, :]  # Feature dimension, time steps, genes
+    #input_expressions = input_sequence[:, -1, :, :]  # Feature dimension, time steps, genes
+    input_expressions = input_sequence[:, :, :, -1] # for ASTGCN
     last_input = input_expressions[:, -1:, :]  # Last time point
    
     output_reshaped = output.squeeze(1)
@@ -163,8 +164,10 @@ def miRNA_enhanced_temporal_loss(output, target, input_sequence, alpha=0.3, beta
     scaled_direction_loss = direction_loss * 0.01
     
     def enhanced_trend_correlation(pred, target, sequence_expr):
-        pred_trend = torch.cat([sequence_expr, pred], dim=1)
-        target_trend = torch.cat([sequence_expr, target], dim=1)
+        #pred_trend = torch.cat([sequence_expr, pred], dim=1)
+        #target_trend = torch.cat([sequence_expr, target], dim=1)
+        pred_trend = torch.cat([sequence_expr, pred], dim=2)  # for ASTGCN
+        target_trend = torch.cat([sequence_expr, target], dim=2) # for ASTGCN
 
         def correlation_loss(x, y):
             x_centered = x - x.mean(dim=1, keepdim=True)
