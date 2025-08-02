@@ -12,7 +12,6 @@ import os
 import seaborn as sns
 from node2vec import Node2Vec
 from scipy.stats import pearsonr
-from model.models import *
 import sys
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import argparse
@@ -25,11 +24,12 @@ from scipy import stats
 from scipy.spatial.distance import pdist, squareform
 from torch.utils.data import DataLoader, TensorDataset
 import random
+import pickle
 
 # Temporal Node2Vec doesn't change the dimensional aspect of the model but change the creation of the embeddings in terms of capturing relations
 # I changed the walk_length=25 num_walks=75 (this is the best version one lately)
 class TemporalNode2Vec:
-    def __init__(self, dimensions=256, walk_length=25, num_walks=75, p=1.0, q=1.0, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
+    def __init__(self, dimensions=256, walk_length=25, num_walks=75, p=1.0, q=0.5, workers=1, seed=42, temporal_weight=0.5): # temporal_weight 0.5 gave the best correlation value (from 0.6 it gets more overfit!!!)
         self.dimensions = dimensions
         print(f"Embedding dimension in TemporalNode2Vec: {self.dimensions}")
         self.walk_length = walk_length
@@ -409,6 +409,18 @@ class TemporalGraphDatasetMirna:
         return temporal_features, temporal_edge_indices, temporal_edge_attrs
     
     def create_temporal_node_features_with_temporal_node2vec(self, debug_mode=True):
+
+        save_dir = 'saved_embeddings'
+        os.makedirs(save_dir, exist_ok=True)
+        
+        save_path = os.path.join(save_dir, f"temporal_embeddings_dim{self.embedding_dim}_seq{self.seq_len}_pred{self.pred_len}.pkl")
+
+        #if os.path.exists(save_path):
+        #    print(f"Loading temporal embeddings from {save_path}")
+        #    with open(save_path, 'rb') as f:
+        #        saved = pickle.load(f)
+        #    return saved['temporal_features'], saved['temporal_edge_indices'], saved['temporal_edge_attrs']
+        
         #clusters, _ = analyze_expression_levels_gmm(self)
         clusters, _ = analyze_expression_levels_kmeans(self)
         gene_clusters = {}
@@ -493,8 +505,10 @@ class TemporalGraphDatasetMirna:
             dimensions=self.embedding_dim,
             walk_length=25,
             num_walks=75,
+            #p=1,
+            #q=1,
             p=1.0,
-            q=1.0,
+            q=0.5,
             workers=1,
             seed=42,
             temporal_weight=0.5  
@@ -508,14 +522,27 @@ class TemporalGraphDatasetMirna:
             min_count=1,
             batch_words=4
         )
+
+        #with open(save_path, 'wb') as f:
+        #    pickle.dump({
+        #        'temporal_features': temporal_features,
+        #        'temporal_edge_indices': temporal_edge_indices,
+        #        'temporal_edge_attrs': temporal_edge_attrs
+        #    }, f)
+
+        print(f"Saved temporal embeddings to {save_path}")
         
         for t in self.time_points:
             for i, gene in enumerate(self.node_map.keys()):
                 gene1_expr = self.df[self.df['Gene1_clean'] == gene][f'Gene1_Time_{t}'].values
+                print(f"Expression value of gene1 {gene1_expr}")
                 gene2_expr = self.df[self.df['Gene2_clean'] == gene][f'Gene2_Time_{t}'].values
+                print(f"Expression value of gene2 {gene2_expr}")
                 
                 expr_value = gene1_expr[0] if len(gene1_expr) > 0 else \
                             (gene2_expr[0] if len(gene2_expr) > 0 else 0.0)
+                print(f" Expression value of {gene} in time {t}: {expr_value}")
+                print(f"Connected genes: {gene1} with {gene2} in time {t}")
         
         return temporal_features, temporal_edge_indices, temporal_edge_attrs
     
@@ -695,6 +722,30 @@ class TemporalGraphDatasetMirna:
         )
     
     def get_temporal_sequences(self):
+
+        """
+        gene_expressions = {
+        t0: {geneA: valA0, geneB: valB0, ... },
+        t1: {geneA: valA1, geneB: valB1, ... },
+        ...
+        }
+
+        sequences = [
+        [graph_t0, graph_t1, ..., graph_t9],    # first window
+        [graph_t1, graph_t2, ..., graph_t10],   # second window
+        ...
+        ]
+
+        labels = [
+        [graph_t10],                            # label for first window
+        [graph_t11],                            # label for second window
+        ...
+        ]
+
+        sequences: list of sliding windows (size seq_len), each as list of graphs
+        labels: list of label windows (size pred_len), each as list of graphs
+
+        """
         sequences = []
         labels = []
     
@@ -724,14 +775,14 @@ class TemporalGraphDatasetMirna:
                     expr_value = 0.0
                     
                 gene_expressions[t][gene] = expr_value
+                print(f"Gene: {gene}, Expression at time {t}: {expr_value}")
 
         print("\nExpression value check:")
         for t in self.time_points[:5]:  # First 5 time points
             print(f"\nTime point {t}:")
             for gene in list(self.node_map.keys())[:5]:  # First 5 genes
                 print(f"Gene {gene}: {gene_expressions[t][gene]}")
-        
-        # Create sequences
+    
         for i in range(len(self.time_points) - self.seq_len - self.pred_len + 1):
             input_times = self.time_points[i:i+self.seq_len]
             target_times = self.time_points[i+self.seq_len:i+self.seq_len+self.pred_len]
@@ -743,7 +794,6 @@ class TemporalGraphDatasetMirna:
             # Create sequence graphs
             seq_graphs = []
             for t in input_times:
-                # The features should already be 32-dimensional from Node2Vec
                 features = torch.tensor([gene_expressions[t][gene] for gene in self.node_map.keys()], 
                                     dtype=torch.float32)
                 graph = self.get_pyg_graph(t)
@@ -907,6 +957,9 @@ class StaticNode2VecGraphDataset:
             self.create_temporal_node_features_with_node2vec()
         
         self.edge_index, self.edge_attr = self.get_edge_index_and_attr()
+
+        self.static_edge_index = self.edge_index
+        self.static_edge_attr = self.edge_attr
     
     def create_base_graph(self):
         """Create a single base graph using structural features"""
@@ -1040,19 +1093,22 @@ class StaticNode2VecGraphDataset:
         val_labels = [labels[i] for i in val_idx]
         return train_sequences, train_labels, val_sequences, val_labels, train_idx, val_idx
     
-    def split_sequences_with_indices(self, sequences, labels, indices_file='plottings_STGCNonly/split_indices.txt'):
-        train_idx, val_idx = load_split_indices(indices_file)
-        
-        n_samples = len(sequences)
-        # Filter out indices that might not exist (in case dataset changes)
-        train_idx = train_idx[train_idx < n_samples]
-        val_idx = val_idx[val_idx < n_samples]
-        
-        print(f"Loaded {len(train_idx)} train indices and {len(val_idx)} val indices from {indices_file}")
-        
-        train_sequences = [sequences[i] for i in train_idx]
-        train_labels = [labels[i] for i in train_idx]
-        val_sequences = [sequences[i] for i in val_idx]
-        val_labels = [labels[i] for i in val_idx]
-        
-        return train_sequences, train_labels, val_sequences, val_labels, train_idx, val_idx
+    def split_sequences_from_idx(self, sequences, labels, train_idx=None, val_idx=None):
+        if train_idx is not None and val_idx is not None:
+            print(f"Using provided train and validation indices.")
+            train_sequences = [sequences[i] for i in train_idx]
+            train_labels = [labels[i] for i in train_idx]
+            val_sequences = [sequences[i] for i in val_idx]
+            val_labels = [labels[i] for i in val_idx]
+            return train_sequences, train_labels, val_sequences, val_labels, train_idx, val_idx
+        else:
+            torch.manual_seed(42)
+            n_samples = len(sequences)
+            n_train = int(n_samples * 0.8)
+            indices = torch.randperm(n_samples)
+            train_idx, val_idx = indices[:n_train], indices[n_train:]
+            train_sequences = [sequences[i] for i in train_idx]
+            train_labels = [labels[i] for i in train_idx]
+            val_sequences = [sequences[i] for i in val_idx]
+            val_labels = [labels[i] for i in val_idx]
+            return train_sequences, train_labels, val_sequences, val_labels, train_idx, val_idx
